@@ -1,0 +1,484 @@
+---
+title: "LURN SI-29 synthetic data dashboard"
+params:
+  patient_id: 1
+  show_table: FALSE
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{css}
+.chart-wrapper{
+    border: 2px solid black;
+}
+.value-box{
+    border: 2px solid black;
+}
+.value-box .inner{
+    padding: 0px 0px 0px 10px;
+}
+.value-box .value {
+    font-size: 20px;
+    margin: 0px;
+}
+.chart-title {
+    font-size: 24px;
+}
+
+/* for the columns with combined plots and value boxes */
+.plot-box-combined.value-box {
+    height: 54px;
+    text-align: left;
+    border-top: none;
+    border-radius: none;
+}
+.plot-box-combined.chart-wrapper{
+    margin-bottom: 0px;
+    border-bottom: none;
+    border-radius: 0px;
+}
+
+/* the table needs scroll bars */
+.scrollable-table .chart-shim{
+    overflow-y: auto;
+}
+
+```
+
+
+```{r global}
+library(lurn)
+library(ggplot2)
+library(flexdashboard)
+library(gt)
+library(ggradar)
+library(viridis)
+library(dplyr)
+
+# read in the patient database
+syn <- read.csv("fromOneDrive/LURN_SI29_Synth_Final_NoFmt.csv", header = TRUE)
+names(syn)[names(syn) == "Sex"] <- "SEX"
+syn <- score_lurn_si_29(syn)
+splom_vars <- c(
+   "lurn_si_29_total_score", "lurn_si_29_incontinence_score",
+   "lurn_si_29_pain_score", "lurn_si_29_voiding_score",
+   "lurn_si_29_urgency_score", "lurn_si_29_nocturia_score",
+   "lurn_si_29_bother")
+
+# simplified dataframe for plots
+splom_dat <- syn[c("ID", splom_vars)]
+names(splom_dat)<- c("ID", "Total", "Incontinence", "Pain", "Voiding", "Urgency", "Nocturia", "Bother")
+input_params <- list(
+    patient_id = params$patient_id, 
+    patient_row = which(splom_dat$ID == params$patient_id)[1]
+)
+
+# read in the time series file
+syn_long <- read.csv("fromOneDrive/syn_long.csv", header = TRUE)
+patient_cells <- list()
+syn_long$ID <- factor(syn_long$ID)
+syn_long_dat <- syn_long[c("ID", "Week", splom_vars)]
+names(syn_long_dat)<- c("ID", "Week", "Total", "Incontinence", "Pain", "Voiding", "Urgency", "Nocturia", "Bother")
+
+
+
+create_density_plot <- function(col, bw = "nrd0"){
+    p <- splom_dat[[input_params$patient_row, col]]
+    m <- median(splom_dat[[col]])
+    lc <- ifelse(p > m, "#ff7518", "#2780E3")
+
+    g <- ggplot(splom_dat, aes(x = .data[[col]])) +
+        geom_density(fill = "lightgray", size = 3, bw = bw) + 
+        geom_vline(xintercept = splom_dat[[input_params$patient_row, col]], color = lc, size = 5) +
+        scale_x_continuous(expand = c(0,0)) +
+        scale_y_continuous(expand = c(0,0)) +
+        theme_classic() + 
+        theme(
+            text = element_text(size = 60),
+            axis.text.y = element_blank(),
+            axis.ticks.y = element_blank(),
+            axis.title.x = element_blank(),
+            axis.title.y = element_blank()
+        )
+
+    return(g)
+}
+
+create_hist_plot <- function(col, binwidth = 5){
+    p <- splom_dat[[input_params$patient_row, col]]
+    m <- median(splom_dat[[col]])
+    lc <- ifelse(p > m, "#ff7518", "#2780E3")
+
+    g <- ggplot(splom_dat, aes(x = .data[[col]])) +
+        geom_histogram(fill = "lightgray", col = "black", size = 3, binwidth = binwidth) + 
+        geom_vline(xintercept = splom_dat[[input_params$patient_row, col]], color = lc, size = 5) +
+        scale_x_continuous(expand = c(0,0)) +
+        scale_y_continuous(expand = c(0,0)) +
+        theme_classic() + 
+        theme(
+            text = element_text(size = 60),
+            axis.text.y = element_blank(),
+            axis.ticks.y = element_blank(),
+            axis.title.x = element_blank(),
+            axis.title.y = element_blank()
+        )
+
+    return(g)
+}
+
+
+create_value_box <- function(col, ndec = 1){
+    p <- splom_dat[[input_params$patient_row, col]]
+    m <- median(splom_dat[[col]])
+    pt <- format(round(p, ndec), nsmall = ndec)
+    mt <- format(round(m, ndec), nsmall = ndec)
+    return(valueBox(paste0(pt, ' (', mt, ')'), color = ifelse(p > m, "warning", "primary")))
+}
+
+create_full_table <- function(){
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    # can I color the borders dynamically to have blue and orange
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    # select the columns that we care about
+    si_29_m_nms <- lurn_si_29_names("male")
+
+    # create a table to this particular patient
+    this_patient_row <- syn[input_params$patient_row, si_29_m_nms]
+
+    # calculate the frequencies
+    si29_prelim_freq_table <- t(apply(syn[si_29_m_nms], 2,
+        function(x) table(factor(x, levels = 0:4), useNA = "always")))
+
+    si29_prelim_prop_table <- prop.table(si29_prelim_freq_table, margin = 1)
+
+    colnames(si29_prelim_prop_table) <- c("0", "1", "2", "3", "4", "Missing")
+
+    # create a legend
+    legend_dat <- data.frame(t(seq(0, 1, .2)))
+    names(legend_dat) <- paste0(seq(0, 100, 20), "%")
+    legend <- gt(legend_dat) %>%
+        data_color(method = "numeric",
+            palette = c("Greys"),
+            domain = c(0, 1)) %>%
+        fmt_number(pattern = "") %>%
+        tab_header(title = "Legend") %>%
+        opt_table_font(font = "Helvetica")
+
+
+        
+    # create the summary table
+    si29_item_table <- as.data.frame(si29_prelim_prop_table) %>%
+        gt(rownames_to_stub = TRUE) %>%
+        tab_stubhead(label = "LURN SI-29 Item") %>%
+        tab_options(table.background.color = "white") %>%
+        data_color(
+            method = "numeric",
+            palette = c("Greys"),
+            domain = c(0, 1)) |>
+        fmt_number(
+            decimals = 0,
+            scale_by = 100,
+            pattern = "{x}%") %>%
+        fmt_number(
+            rows = c(19, 21, 23, 28),
+            columns = "4",
+            pattern = "") %>%
+        fmt_number(
+            rows = 24,
+            columns = c("2", "3", "4"),
+            pattern = "") %>%
+        cols_width(
+            everything() ~ px(85)) %>%
+        cols_width(
+            1 ~ px(100)) 
+            
+
+    # highlight the responses from the patient
+    for (cc in si_29_m_nms){
+        patient_value <- this_patient_row[, cc]
+        median_value <- median(syn[, cc], na.rm = TRUE)
+        color <- ifelse(patient_value > median_value, "#ff7518", "#2780E3")
+
+        si29_item_table <- si29_item_table %>%
+            tab_style(
+                style = list(
+                    cell_borders(
+                        sides = c("top", "bottom", "left", "right"),
+                        color = color,
+                        weight = px(4)
+                    )
+                ),
+                locations = list(
+                    cells_body(
+                        columns = paste(patient_value),
+                        rows = cc
+                    )
+                )
+            )
+    }
+
+    return(
+        list(
+            "table" = si29_item_table,
+            "legend" = legend
+        )
+    )
+
+}
+
+create_radar_plot <- function(weeks_to_use = c(0, 8, 16, 24)){
+
+    # grab the desired patient and columns for radar plot
+    patient_radar_data <- syn_long_dat[syn_long_dat$ID == input_params$patient_id, ]
+
+    # take only the weeks that are requested
+    patient_radar_data <- patient_radar_data[patient_radar_data$Week %in% weeks_to_use,]
+
+    # rename column for ggradar
+    names(patient_radar_data)[2] <- "Time"
+    patient_radar_data$Time <- factor(patient_radar_data$Time)
+
+    # remove the ID column
+    patient_radar_data <- patient_radar_data[ , !names(patient_radar_data) == "ID"]
+
+
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    # I need to find a way to handle NaN values for the radar plot
+    patient_radar_data[is.na(patient_radar_data)] = 0
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    g <- ggradar(patient_radar_data, grid.min = 0, grid.mid = 50, grid.max = 100, gridline.mid.colour = "grey",
+        label.gridline.mid = TRUE,
+        #group.colours = mako(length(weeks_to_use)),
+        background.circle.colour = "lightgray",
+        legend.title = "Weeks since procedure", 
+        plot.extent.x.sf = 1.3,
+        axis.label.size = 4, 
+        grid.label.size = 3,
+        group.point.size = 3,
+        group.line.width = 1.5
+        ) + 
+        theme(
+            text = element_text(size = 12), 
+            legend.text = element_text(size = 7),
+            # legend.position = c(0.75, -0.35),  
+            legend.position = c(0.65, -0.35),  
+            legend.justification = c(1, 0),
+            plot.margin = grid::unit(c(-0.5, -0.1, -0.3, -0.1), "null")
+        )  + 
+        guides(color = guide_legend(nrow = 2)) 
+
+    return(g)
+}
+
+create_line_plot <- function(col = "Total"){
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    # needs a legend
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    breaks <- seq(0, 24, 4)
+    labels <- c("0\n(baseline)", "4", "8", "12", "16", "20", "24")
+
+    line_df_input <- syn_long_dat[c("ID", "Week", col)]
+    line_df_summary <- line_df_input %>%
+        group_by(Week) %>%
+        summarise(
+            mean = mean(!!sym(col), na.rm = TRUE), 
+            sd = sd(!!sym(col), na.rm = TRUE),
+        )
+
+    # loess regression
+    span <- 0.75
+    loess_mean <- loess(mean ~ Week, data = line_df_summary, span = span)
+    loess_sd <- loess(sd ~ Week, data = line_df_summary, span = span)
+
+    # new dataframe to plot
+    Week <- seq(min(line_df_summary$Week), max(line_df_summary$Week), by = 0.1)
+    line_df_plot <- data.frame(Week)
+    line_df_plot$mean <- predict(loess_mean, line_df_plot)
+    line_df_plot$hi <- pmin(line_df_plot$mean + predict(loess_sd, line_df_plot), 100)
+    line_df_plot$lo <- pmax(line_df_plot$mean - predict(loess_sd, line_df_plot), 0)
+
+    # grab the desired patient and columns for radar plot
+    patient_line_data <- line_df_input[line_df_input$ID == input_params$patient_id, ]
+    hi <- predict(loess_mean, patient_line_data) + predict(loess_sd, patient_line_data)
+    patient_line_data$color <- ifelse(patient_line_data[col] > hi, "#ff7518", "#2780E3")
+
+    g <- ggplot(data = line_df_plot, aes(x = Week)) + 
+        geom_ribbon(aes(ymin = lo, ymax = hi), fill = "lightgray") +
+        geom_line(aes(Week, mean), color = "black", size = 1.5) + 
+        geom_line(aes(Week, hi), color = "black", linetype = "dashed", size = 1.5) + 
+        geom_line(aes(Week, lo), color = "black", linetype = "dashed", size = 1.5) + 
+        geom_point(data = patient_line_data, aes(Week, .data[[col]]), color = patient_line_data$color, size = 5) + 
+        scale_y_continuous(paste(col, "Score"), limits = c(0, max(line_df_input[col]))) +
+        scale_x_continuous("Weeks since procedure", breaks = breaks, labels = labels) + 
+        theme_classic() + 
+        theme(text = element_text(size = 20))
+
+    return(g)
+} 
+
+
+```
+
+
+
+Plots
+=====================================   
+
+Column {data-width=500}
+-------------------------------------
+
+### Total {class="plot-box-combined"}
+    
+```{r, fig.width = 10}
+create_density_plot("Total")
+```
+
+### Total: Patient (Median) {class="plot-box-combined"}
+
+```{r}
+create_value_box("Total")
+```
+
+
+
+### Incontinence {class="plot-box-combined"}
+    
+```{r, fig.width = 10}
+create_density_plot("Incontinence")
+```
+
+### Incontinence: Patient (Median) {class="plot-box-combined"}
+
+```{r}
+create_value_box("Incontinence")
+```
+
+
+
+### Pain {class="plot-box-combined"}
+    
+```{r, fig.width = 10}
+create_density_plot("Pain")
+```
+
+### Pain: Patient (Median) {class="plot-box-combined"}
+
+```{r}
+create_value_box("Pain")
+```
+
+
+
+### Voiding {class="plot-box-combined"}
+    
+```{r, fig.width = 10}
+create_density_plot("Voiding")
+```
+
+### Voiding: Patient (Median) {class="plot-box-combined"}
+
+```{r}
+create_value_box("Voiding")
+```
+
+
+Column {data-width=500}
+-------------------------------------
+   
+### Urgency {class="plot-box-combined"}
+    
+```{r, fig.width = 10}
+create_density_plot("Urgency")
+```
+
+### Urgency: Patient (Median) {class="plot-box-combined"}
+
+```{r}
+create_value_box("Urgency")
+```
+
+
+
+### Nocturia {class="plot-box-combined"}
+    
+```{r, fig.width = 10}
+create_hist_plot("Nocturia", binwidth = 15)
+```
+
+### Nocturia: Patient (Median) {class="plot-box-combined"}
+
+```{r}
+create_value_box("Nocturia")
+```
+
+
+
+### Bother {class="plot-box-combined"}
+    
+```{r, fig.width = 10}
+create_hist_plot("Bother", binwidth = 1)
+# create_density_plot("Bother", bw = 0.5)
+```
+
+### Bother: Patient (Median) {class="plot-box-combined"}
+
+```{r}
+create_value_box("Bother")
+```
+
+
+
+### Empty Chart {class="plot-box-combined invisible"}
+    
+```{r, fig.width = 10}
+```
+
+### Empty Box {class="plot-box-combined invisible"}
+
+```{r}
+valueBox(0)
+```
+
+Column {data-width=700}
+-------------------------------------
+
+### Change Over Time
+     
+```{r, fig.width = 5}
+create_line_plot(col = "Urgency")
+```
+
+### Radar Plot
+     
+```{r, fig.width = 5}
+create_radar_plot()
+```
+
+
+Tables
+=====================================  
+
+Column {data-width=1050}
+-------------------------------------
+
+### Patient Scores Compared to Aggregate {class="scrollable-table"}
+
+```{r}
+tbl <- create_full_table()
+tbl$table
+```
+
+<!-- used to click on the Tables panel so that I can rdner it -->
+```{r results='asis'}
+if (params$show_table) {
+  js_code <- '<script>console.log("trying to show table");setTimeout(function() {var tablesPanel = document.querySelector(\'a[href="#tables"]\');tablesPanel.click();}, 100);</script>'
+} else {
+  js_code <- ''
+}
+cat(js_code)
+```
