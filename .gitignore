@@ -8,10 +8,18 @@
 ehthumbs.db
 Thumbs.db
 
-# data files *
-#####################
+# data files #
+###################
 fromOneDrive/
 *.csv
+
+# generated images #
+###################
+*.png
+
+# generated html files #
+###################
+*.html
 
 # python #
 ###################
