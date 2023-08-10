@@ -58,7 +58,7 @@ library(viridis)
 library(dplyr)
 
 # read in the patient database
-syn <- read.csv("fromOneDrive/LURN_SI29_Synth_Final_NoFmt.csv", header = TRUE)
+syn <- read.csv("../../data/LURN_SI29_Synth_Final_NoFmt.csv", header = TRUE)
 names(syn)[names(syn) == "Sex"] <- "SEX"
 syn <- score_lurn_si_29(syn)
 splom_vars <- c(
@@ -76,7 +76,7 @@ input_params <- list(
 )
 
 # read in the time series file
-syn_long <- read.csv("fromOneDrive/syn_long.csv", header = TRUE)
+syn_long <- read.csv("../../data/syn_long.csv", header = TRUE)
 patient_cells <- list()
 syn_long$ID <- factor(syn_long$ID)
 syn_long_dat <- syn_long[c("ID", "Week", splom_vars)]

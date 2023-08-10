@@ -80,7 +80,7 @@ symptoms <- c("Total",
 
 
 # read in the time series file
-syn_long <- read.csv("fromOneDrive/syn_long.csv", header = TRUE)
+syn_long <- read.csv("../../data/syn_long.csv", header = TRUE)
 patient_cells <- list()
 syn_long$ID <- factor(syn_long$ID)
 syn_long_dat <- syn_long[c("ID", "Week", splom_vars)]
