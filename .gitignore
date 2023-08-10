@@ -10,7 +10,7 @@ Thumbs.db
 
 # data files #
 ###################
-fromOneDrive/
+data/
 *.csv
 
 # generated images #
