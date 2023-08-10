@@ -107,84 +107,55 @@ rescale_to_range <- function(x, new_min, new_max) {
 syn_week_dat$Bother <- rescale_to_range(syn_week_dat$Bother, 0, 100)
 syn_long_dat$Bother <- rescale_to_range(syn_long_dat$Bother, 0, 100)
 
-create_density_plot <- function(col, bw = "nrd0"){
-    p <- syn_week_dat[[input_params$patient_row, col]]
-    m <- median(syn_week_dat[[col]])
-    lc <- ifelse(p > m, "#ff7518", "#2780E3")
-
-    g <- ggplot(syn_week_dat, aes(x = .data[[col]])) +
-        geom_density(fill = "lightgray", size = 3, bw = bw) + 
-        geom_vline(xintercept = syn_week_dat[[input_params$patient_row, col]], color = lc, size = 5) +
-        scale_x_continuous(expand = c(0,0)) +
-        scale_y_continuous(expand = c(0,0)) +
-        theme_classic() + 
-        theme(
-            text = element_text(size = 60),
-            axis.text.y = element_blank(),
-            axis.ticks.y = element_blank(),
-            axis.title.x = element_blank(),
-            axis.title.y = element_blank()
-        )
-
-    return(g)
-}
-
-create_hist_plot <- function(col, binwidth = 5){
-    p <- syn_week_dat[[input_params$patient_row, col]]
-    m <- median(syn_week_dat[[col]])
-    lc <- ifelse(p > m, "#ff7518", "#2780E3")
-
-    g <- ggplot(syn_week_dat, aes(x = .data[[col]])) +
-        geom_histogram(fill = "lightgray", col = "black", size = 3, binwidth = binwidth) + 
-        geom_vline(xintercept = syn_week_dat[[input_params$patient_row, col]], color = lc, size = 5) +
-        scale_x_continuous(expand = c(0,0)) +
-        scale_y_continuous(expand = c(0,0)) +
-        theme_classic() + 
-        theme(
-            text = element_text(size = 60),
-            axis.text.y = element_blank(),
-            axis.ticks.y = element_blank(),
-            axis.title.x = element_blank(),
-            axis.title.y = element_blank()
-        )
-
-    return(g)
-}
-
-create_bar_plot <- function(binwidth = 5){
-    p <- syn_week_dat[[input_params$patient_row]]
-    m <- median(syn_week_dat[[col]])
-    lc <- ifelse(p > m, "#ff7518", "#2780E3")
-
-    g <- ggplot(syn_week_dat, aes(x = .data[[col]])) +
-        geom_histogram(fill = "lightgray", col = "black", size = 3, binwidth = binwidth) + 
-        geom_vline(xintercept = syn_week_dat[[input_params$patient_row, col]], color = lc, size = 5) +
-        scale_x_continuous(expand = c(0,0)) +
-        scale_y_continuous(expand = c(0,0)) +
-        theme_classic() + 
-        theme(
-            text = element_text(size = 60),
-            axis.text.y = element_blank(),
-            axis.ticks.y = element_blank(),
-            axis.title.x = element_blank(),
-            axis.title.y = element_blank()
-        )
-
-    return(g)
-}
-
-create_value_box <- function(col, ndec = 1){
-    p <- syn_week_dat[[input_params$patient_row, col]]
-    m <- median(syn_week_dat[[col]])
-    pt <- format(round(p, ndec), nsmall = ndec)
-    mt <- format(round(m, ndec), nsmall = ndec)
-    return(valueBox(paste0(pt, ' (', mt, ')'), color = ifelse(p > m, "warning", "primary")))
-}
 
 create_full_table <- function(){
+    # Code mostly from Jamie Griffith
     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     # can I color the borders dynamically to have blue and orange
     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   # the questions
+    q_vec <- c("Loss of bladder Control",
+        "Urine leakage",
+        "Urine leakage from laughing, coughing, etc.",
+        "Urine leakage during activities",
+        "Urine leakage from walking",
+        "Urine leakage at night",
+        "Pain/discomfort with bladder filling",
+        "Pain/discomfort with full bladder", 
+        "Pain/discomfort during Urination",
+        "Pain/discomfort after urination",
+        "Need to push for Urination",
+        "Delay in urination",
+        "Repeated stops in urine flow",
+        "Slow/Weak urine flow",
+        "Trickle/dribble after urination",
+        "Sudden need to urinate",
+        "Sudden need to urinate with potential leakage",
+        "How difficult was it to wait more than a few minutes?",
+        "Times awakened to urinate per night",
+        "Frequency of nights awakened to urinate",
+        "Number of daytime urinations",
+        "Time between daytime urinations",
+        "Strength of nighttime urge to urinate",
+        "Constant need to urinate",
+        "Bladder not empty after urination",
+        "Urine dribble after voiding",
+        "Splitting/spraying of urine stream",
+        "Bothered from urinary symptoms")
+
+
+    # create the legend
+    legend_dat <- data.frame(t(seq(0, 1, .2)))
+    names(legend_dat) <- paste0(seq(0, 100, 20), "%")
+    legend <- gt(legend_dat) %>%
+        data_color(method = "numeric",
+            palette = c("Greys"),
+            domain = c(0, 1)) %>%
+        fmt_number(pattern = "") %>%
+        tab_header(title = "Population Values Legend") %>%
+        opt_table_font(font = "Helvetica")
+
 
     # select the columns that we care about
     si_29_m_nms <- lurn_si_29_names("male")
@@ -200,51 +171,104 @@ create_full_table <- function(){
 
     colnames(si29_prelim_prop_table) <- c("0", "1", "2", "3", "4", "Missing")
 
-    # create a legend
-    legend_dat <- data.frame(t(seq(0, 1, .2)))
-    names(legend_dat) <- paste0(seq(0, 100, 20), "%")
-    legend <- gt(legend_dat) %>%
-        data_color(method = "numeric",
-            palette = c("Greys"),
-            domain = c(0, 1)) %>%
-        fmt_number(pattern = "") %>%
-        tab_header(title = "Legend") %>%
-        opt_table_font(font = "Helvetica")
 
+    si29_prop_table <- cbind(`Question: Short description` = q_vec,
+                            as.data.frame(si29_prelim_prop_table))
 
-        
-    # create the summary table
-    si29_item_table <- as.data.frame(si29_prelim_prop_table) %>%
-        gt(rownames_to_stub = TRUE) %>%
-        tab_stubhead(label = "LURN SI-29 Item") %>%
-        tab_options(table.background.color = "white") %>%
-        data_color(
-            method = "numeric",
-            palette = c("Greys"),
-            domain = c(0, 1)) |>
-        fmt_number(
-            decimals = 0,
-            scale_by = 100,
-            pattern = "{x}%") %>%
-        fmt_number(
-            rows = c(19, 21, 23, 28),
-            columns = "4",
-            pattern = "") %>%
-        fmt_number(
-            rows = 24,
-            columns = c("2", "3", "4"),
-            pattern = "") %>%
-        cols_width(
-            everything() ~ px(85)) %>%
-        cols_width(
-            1 ~ px(100)) 
-            
+    si29_item_table <- si29_prop_table %>%
+    gt(rownames_to_stub = TRUE) %>%
+    tab_stubhead(label = md("**LURN SI-29 Item**")) %>%
+    tab_spanner(
+        label = "Response options (0-4): Higher numbers mean higher severity",
+        columns = c("0", "1", "2", "3", "4", "Missing")) %>%
+    tab_options(table.background.color = "white") %>%
+    data_color(
+        columns = c("0", "1", "2", "3", "4", "Missing"),
+        method = "numeric",
+        palette = c("Greys"),
+        domain = c(0, 1)) %>%
+    fmt_number(
+        columns = c("0", "1", "2", "3", "4", "Missing"),
+        decimals = 0,
+        scale_by = 100,
+        pattern = "{x}%") %>%
+    fmt_number(
+        rows = c(19, 21, 23, 28),
+        columns = "4",
+        pattern = "") %>%
+    fmt_number(
+        rows = 24,
+        columns = c("2", "3", "4"),
+        pattern = "") %>%
+    cols_width(
+        everything() ~ px(80)) %>%
+    cols_width(
+        1 ~ px(150)) %>%
+    cols_width(
+        2 ~ px(300)) %>%
+    cols_width(
+        8 ~ px(100)) %>%
+    tab_header(title = md(
+        "**Figure 1: LURN SI-29: Percentages of response values**"),
+        subtitle = 
+        "Synthetic data: Darker gray corresponds to higher percentages") %>%
+    tab_footnote(footnote = 
+        "For items SI29_Q19, SI29_Q21, SI29_Q23, SI29_Q24, and SI29_Q28, blank cells are not possible response values") %>%
+    tab_source_note(source_note = paste0("Data are synthetic for testing and simulation purposes. N = ",  length(syn_week$ID))) %>%
+    opt_table_font(font = "Helvetica") %>%
+    tab_row_group(label = md("**Section F: Additional symptoms and bother**"),
+                    rows = c("SI29_Q21", "SI29_Q22", "SI29_Q23", "SI29_Q24",
+                            "SI29_Q25", "SI29_Q26", "SI29_Q27b",
+                            "SI29_Q28")) %>%
+    tab_row_group(label = md("**Section E: Nocturia**"),
+                    rows = c("SI29_Q19", "SI29_Q20")) %>% 
+    tab_row_group(label = md("**Section D: Urgency**"),
+                    rows = c("SI29_Q16", "SI29_Q17", "SI29_Q18")) %>%
+    tab_row_group(label = md("**Section C: Voiding difficulty**"),
+                    rows = c("SI29_Q11", "SI29_Q12", "SI29_Q13",
+                            "SI29_Q14", "SI29_Q15")) %>%
+    tab_row_group(label = md("**Section B: Pain**"),
+                    rows = c("SI29_Q7", "SI29_Q8", "SI29_Q9", "SI29_Q10")) %>%
+    tab_row_group(label = md("**Section A: Incontinence**"),
+                    rows = c("SI29_Q1", "SI29_Q2", "SI29_Q3",
+                            "SI29_Q4", "SI29_Q5", "SI29_Q6")) %>%
+    cols_label(`Question: Short description` = 
+                md("**Question: Short description**"))
 
     # highlight the responses from the patient
+
+    # Define a custom color palette
+    custom_palette <- c("#2780E3", "black", "#ff7518")
+    # Create a color ramp function using the custom palette
+    color_ramp <- colorRampPalette(custom_palette)
+
+    # create the second legend
+    legend_patient_dat <- data.frame(t(seq(-1, 1, .25)))
+    names(legend_patient_dat) <- seq(-1, 1, 0.25)
+    legend_patient <- gt(legend_patient_dat) %>%
+        data_color(method = "numeric",
+            palette = custom_palette,
+            domain = c(-1, 1)) %>%
+        fmt_number(pattern = "") %>%
+        tab_header(title = "Patient Values Legend: (patient_value - median)/width") %>%
+        opt_table_font(font = "Helvetica")
+
+    # iterate through the questions
     for (cc in si_29_m_nms){
         patient_value <- this_patient_row[, cc]
         median_value <- median(syn_week[, cc], na.rm = TRUE)
-        color <- ifelse(patient_value > median_value, "#ff7518", "#2780E3")
+        Percentile_16 = quantile(syn_week[, cc], probs = 0.16, na.rm = TRUE)
+        Percentile_84 = quantile(syn_week[, cc], probs = 0.84, na.rm = TRUE)
+        width <- Percentile_84 - Percentile_16
+        # what should I do with width == 0 ??!!
+        if (width == 0) width <- 1.
+
+        # Calculate the color value based on (patient_value - median_value) / width
+        color_value <- (patient_value - median_value)/width
+        color_value <- pmin(pmax(color_value, -1), 1)
+
+        # Map color value to the custom palette
+        color <- color_ramp(100)[findInterval(color_value, seq(-1, 1, length.out = 100))]
 
         si29_item_table <- si29_item_table %>%
             tab_style(
@@ -267,7 +291,8 @@ create_full_table <- function(){
     return(
         list(
             "table" = si29_item_table,
-            "legend" = legend
+            "comparison_legend" = legend,
+            "patient_legend" = legend_patient
         )
     )
 
@@ -318,54 +343,8 @@ create_radar_plot <- function(weeks_to_use = c(0, 8, 16, 24)){
     return(g)
 }
 
-create_line_plot <- function(col = "Total"){
-    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    # needs a legend
-    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    breaks <- seq(0, 24, 4)
-    labels <- c("0\n(baseline)", "4", "8", "12", "16", "20", "24")
-
-    line_df_input <- syn_long_dat[c("ID", "Week", col)]
-    line_df_summary <- line_df_input %>%
-        group_by(Week) %>%
-        summarise(
-            mean = mean(!!sym(col), na.rm = TRUE), 
-            sd = sd(!!sym(col), na.rm = TRUE),
-        )
-
-    # loess regression
-    span <- 0.75
-    loess_mean <- loess(mean ~ Week, data = line_df_summary, span = span)
-    loess_sd <- loess(sd ~ Week, data = line_df_summary, span = span)
-
-    # new dataframe to plot
-    Week <- seq(min(line_df_summary$Week), max(line_df_summary$Week), by = 0.1)
-    line_df_plot <- data.frame(Week)
-    line_df_plot$mean <- predict(loess_mean, line_df_plot)
-    line_df_plot$hi <- pmin(line_df_plot$mean + predict(loess_sd, line_df_plot), 100)
-    line_df_plot$lo <- pmax(line_df_plot$mean - predict(loess_sd, line_df_plot), 0)
-
-    # grab the desired patient and columns for radar plot
-    patient_line_data <- line_df_input[line_df_input$ID == input_params$patient_id, ]
-    hi <- predict(loess_mean, patient_line_data) + predict(loess_sd, patient_line_data)
-    patient_line_data$color <- ifelse(patient_line_data[col] > hi, "#ff7518", "#2780E3")
-
-    g <- ggplot(data = line_df_plot, aes(x = Week)) + 
-        geom_ribbon(aes(ymin = lo, ymax = hi), fill = "lightgray") +
-        geom_line(aes(Week, mean), color = "black", size = 1.5) + 
-        geom_line(aes(Week, hi), color = "black", linetype = "dashed", size = 1.5) + 
-        geom_line(aes(Week, lo), color = "black", linetype = "dashed", size = 1.5) + 
-        geom_point(data = patient_line_data, aes(Week, .data[[col]]), color = patient_line_data$color, size = 5) + 
-        scale_y_continuous(paste(col, "Score"), limits = c(0, max(line_df_input[col]))) +
-        scale_x_continuous("Weeks since procedure", breaks = breaks, labels = labels) + 
-        theme_classic() + 
-        theme(text = element_text(size = 20))
-
-    return(g)
-} 
-
-create_summary_bar_chart <- function(){
+create_current_week_summary_bar_chart <- function(){
     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     # needs a legend
     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -425,7 +404,7 @@ create_summary_bar_chart <- function(){
     return(g)
 }
 
-create_bubble_chart <- function(){
+create_time_series_bubble_chart <- function(){
     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     # needs a legend
     # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -523,7 +502,7 @@ Column {data-width=500}
 ### Current Symptoms Summary 
     
 ```{r, fig.width = 7, fig.height = 10}
-create_summary_bar_chart()
+create_current_week_summary_bar_chart()
 ```
 
 
@@ -536,7 +515,7 @@ Column {data-width=500}
 ### Change in Symptoms Over Time
      
 ```{r, fig.height = 8}
-create_bubble_chart()
+create_time_series_bubble_chart()
 ```
 
 ### Radar Plot for Symptoms Over Time
@@ -557,6 +536,8 @@ Column {data-width=1050}
 ```{r}
 tbl <- create_full_table()
 tbl$table
+tbl$comparison_legend
+tbl$patient_legend
 ```
 
 <!-- used to click on the Tables panel so that I can rdner it -->
