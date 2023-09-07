@@ -6,7 +6,7 @@ params:
   show_table: FALSE
 output: 
   flexdashboard::flex_dashboard:
-    orientation: columns
+    orientation: rows
     vertical_layout: fill
     horizontal_layout: fill
 ---
@@ -59,6 +59,7 @@ library(ggradar)
 library(viridis)
 library(dplyr)
 library(tidyr)
+library(cowplot)
 
 # for renaming columns
 splom_vars <- c(
@@ -304,9 +305,6 @@ create_full_table <- function(){
 
 
 create_current_week_summary_bar_chart <- function(){
-    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    # needs a legend
-    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     # create a summary for each of the columns for all patients as a comparison
     df <- select(syn_week_dat, -c(ID, Week))
@@ -333,8 +331,17 @@ create_current_week_summary_bar_chart <- function(){
     # Define a custom color palette
     custom_palette <- c("#2780E3", "white", "#ff7518")
 
+    # for labelling (so that I can match the size of the other plot)
+    breaks <- seq(0, 100, 20)
+    labels <- c("0\n", "20", "40", "60", "80", "100")
+
+    # separate the Total
+    panel_spacing <- rep(0, length(symptoms) - 1)
+    panel_spacing[length(panel_spacing)] <- 1
+
     g <- ggplot(summary_df, aes(x = Symptom, y = Value, fill = (Value - Median)/Width)) +
-        scale_x_discrete(limits = rev(levels(summary_df$Symptom))) +
+        # scale_x_discrete(limits = rev(levels(summary_df$Symptom))) +
+        scale_y_continuous("Symptom level", breaks = breaks, labels = labels) +
         geom_bar(stat = "identity", fill = "white", color = "black", size = 1.5) + 
         geom_bar(stat = "identity") + 
         scale_fill_gradient2(
@@ -346,21 +353,23 @@ create_current_week_summary_bar_chart <- function(){
             oob = scales::squish
         ) +    
         geom_errorbar(aes(y = NULL, ymin = Median, ymax = Median), width = 0.75, color = "darkgray", size = 3) +
-        geom_vline(xintercept = 1.5, linetype = "dotted") + 
+        # geom_vline(xintercept = 0.4) + 
+        # geom_vline(xintercept = 1.6) + 
+        facet_grid(Symptom ~ ., 
+            scales = "free_y", 
+            switch = "both",
+        ) + 
         coord_flip() + 
-        theme_classic() + 
-        guides(fill = guide_colorbar(title.position = "bottom",
-            title.hjust = 0.5,
-            title.vjust = 0,
-            label.position = "bottom")
-        ) +  
+        guides(fill = FALSE) +
+        theme_bw() +
         theme(
-            legend.position = "bottom",           
-            legend.key.width = unit(2, "cm"),
-            legend.title.align = 0.5,
-            legend.margin = margin(t = 50),
-            text = element_text(size = 20),
-        )    
+            panel.spacing = unit(panel_spacing, "lines"),
+            strip.text = element_text(size = 0, margin = margin(0,0,0,0)),
+            plot.margin = margin(0.25, 0, 0.25, 0.25, "cm"),
+            panel.grid.major = element_blank(), 
+            panel.grid.minor = element_blank(),
+        )
+
 
     return(g)
 }
@@ -421,6 +430,27 @@ create_time_series_line_plot <- function(){
     breaks <- seq(0, 24, 4)
     labels <- c("0\n(baseline)", "4", "8", "12", "16", "20", "24")
 
+    # function to calculate custom breaks
+    custom_breaks <- function(data, n_breaks = 4, tol = 0.5) {
+        # Calculate breaks based on data range
+        min_value <- min(data)
+        max_value <- max(data)
+        breaks <- pretty(c(min_value, max_value), n = n_breaks)
+        diff <- breaks[2] - breaks[1]
+        top_diff <- max_value - breaks[length(breaks)]
+        if (abs(top_diff/diff) > tol) {
+            breaks <- breaks[1:(length(breaks) - 1)]
+            if (top_diff < 0){
+                breaks <- breaks[1:(length(breaks) - 1)]
+            }
+        }
+        return(breaks)
+    }
+
+    # separate the Total
+    panel_spacing <- rep(0, length(symptoms) - 1)
+    panel_spacing[length(panel_spacing)] <- 1
+
     g <- ggplot(merged_df, aes(x = Week, y = Median)) +
         geom_line(color = "darkgray", linetype = "dashed", size = 1.5) +
         geom_line(data = merged_df_clean_limit_week, aes(y = Value)) +
@@ -433,30 +463,77 @@ create_time_series_line_plot <- function(){
             limits = c(-1, 1),
             oob = scales::squish
         ) +   
-        geom_hline(yintercept = 0) + 
+        # geom_hline(yintercept = 0) + 
         facet_grid(Symptom ~ ., 
             scales = "free_y", 
-            switch="both"
+            switch = "both",
         ) + 
         scale_x_continuous("Weeks since procedure", breaks = breaks, labels = labels) + 
-        scale_y_continuous(expand = expansion(mult = c(0, 0.25))) +
+        scale_y_continuous("Symptom level", expand = expansion(mult = c(0, 0.25)),
+            breaks = function(x) {
+                return(custom_breaks(x))
+            },
+            position = "right"
+        ) +
         expand_limits(x = c(-1, 26)) + 
         ylab("") + 
-        theme_classic() + 
-        guides(fill = guide_colorbar(title.position = "bottom",
-            title.hjust = 0.5,
-            title.vjust = 0,
-            label.position = "bottom")
-        ) +  
+        # theme_void() + 
+        guides(fill = FALSE) +
+        theme_bw() + 
+        theme(
+            strip.text = element_text(size = 0, margin = margin(0,0,0,0)),
+            plot.margin = margin(0.25, 0.25, 0.25, 0.1, "cm"),
+            panel.spacing = unit(panel_spacing, "lines"),
+            panel.grid.major = element_blank(), 
+            panel.grid.minor = element_blank(),
+            axis.title.y.right = element_text(margin = margin(l = 10))
+
+        )  
+
+    # create another plot just for the legend (not sure there's a simpler way to do this!)
+    g_legend <- ggplot(merged_df, aes(x = Week, y = Median)) +
+        geom_line(color = "darkgray", linetype = "dashed", size = 1.5) +
+        geom_line(data = merged_df_clean_limit_week, aes(y = Value)) +
+        geom_point(data = merged_df_clean_limit_week, aes(y = Value, fill = (Value - Median)/Width), shape = 21, color = "black", size = 4, stroke = 1.5) + 
+        scale_fill_gradient2(
+            low = custom_palette[1], 
+            mid = custom_palette[2], 
+            high = custom_palette[3],
+            midpoint = 0, 
+            limits = c(-1, 1),
+            oob = scales::squish
+        ) +    
+         guides(
+            fill = guide_colorbar(
+                title = "Scaled offset from median of reference population",
+                title.position = "bottom",
+                title.hjust = 0.5,
+                title.vjust = 0,
+                label.position = "bottom"
+            )
+        ) + 
+        theme_bw() + 
         theme(
             legend.position = "bottom",           
             legend.key.width = unit(2, "cm"),
             legend.title.align = 0.5,
-            legend.margin = margin(t = 30)
+            legend.margin = margin(margin(10,0,0,0,"cm")),
+            legend.title = element_text(size = 9), 
+            legend.text = element_text(size = 8, color = "#555555")
         )   
+
+
+    legend <- cowplot::get_legend(g_legend)
     
-    return(g)
+
+    return(
+        list(
+            "plot" = g,
+            "legend" = legend
+        )
+    )
 }
+
 ```
 
 
@@ -464,34 +541,38 @@ create_time_series_line_plot <- function(){
 Plots
 =====================================   
 
-Column {data-width=500}
+Row {data-height=800}
 -------------------------------------
 
-### Current Symptoms Summary for Week `r params$patient_week`
+### Symptoms Summary for Patient `r params$patient_id` at Week `r params$patient_week`
     
-```{r, fig.width = 7, fig.height = 10}
-create_current_week_summary_bar_chart()
+```{r, fig.width = 10, fig.height = 10}
+bar_chart <- create_current_week_summary_bar_chart()
+line_plot <- create_time_series_line_plot()
+
+g <- plot_grid(bar_chart, line_plot$plot, ncol = 2, align = "h", rel_widths = c(1,0.92), axis = "l")
+plot_grid(g, line_plot$legend, ncol = 1, rel_heights = c(1, 0.2))
 ```
 
-
-
-Column {data-width=500}
+Row {data-height=125}
 -------------------------------------
 
-### Change in Symptoms Over Time
-     
-```{r, fig.height = 10}
-create_time_series_line_plot()
-```
+### Description
+The figures above show results from survey(s) you filled out recording the level of your symptoms at each doctor visit.  
+
+The panels on the left show your current symptoms in color-filled rectangles compared to a reference population shown in gray lines. The panels on the right show your symptoms over time in color-filled circles compared to the same reference population shown in gray dashed lines. 
+
+In all panels, the color indicates how your symptom level compares with that of the reference population, with blue being lower and orange being higher than the reference population, as indicated by the colorbar at the bottom.  
+
 
 
 Tables
 =====================================  
 
-Column {data-width=1050}
+Row {data-width=1050}
 -------------------------------------
 
-### Patient Scores Compared to Aggregate for Week `r params$patient_week` {class="scrollable-table"}
+### Patient Scores Compared to Aggregate for Patient `r params$patient_id` at Week `r params$patient_week` {class="scrollable-table"}
 
 ```{r}
 tbl <- create_full_table()
@@ -500,7 +581,7 @@ tbl$comparison_legend
 tbl$patient_legend
 ```
 
-<!-- used to click on the Tables panel so that I can rdner it -->
+<!-- used to click on the Tables panel so that I can render it -->
 ```{r results='asis'}
 if (params$show_table) {
   js_code <- '<script>console.log("trying to show table");setTimeout(function() {var tablesPanel = document.querySelector(\'a[href="#tables"]\');tablesPanel.click();}, 100);</script>'
