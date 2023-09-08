@@ -13,7 +13,9 @@ $ Rscript -e "webshot::rmdshot(doc = 'SI-29_dashboard.Rmd', rmd_args = list(para
 - The third line renders the tab with the figures into a .png image.  This takes similar arguments to the previous command, and also has a file name and a width and height.  I selected these width and height values to be the same aspect ratio as an 8.5/11 inch paper.
 - The fourth line is similar to the previous one, but renders the tab with the table to a .png image.  Note that there is a delay built in because the .Rmd code needs some time to selecte the correct tab. 
 
-Please note that this code requires a `../data` directory with the synthetic data files (as described in the `README.md` file within the root directory of this repo).
+Alternatively, you should be able to accomplish this within Rstudio or within an R session by only running the portions of these lines within the quotes (i.e., excluding the `Rscript -e` portion). 
+
+Please note that this code requires a `../data/` directory with the synthetic data files (as described in the `README.md` file within the root directory of this repo).
 
 In the future, I could probably create a double-clickable executable file that runs the Rscript command and opens the images.
 
