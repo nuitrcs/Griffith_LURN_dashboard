@@ -98,7 +98,6 @@ input_params <- list(
     patient_row = which(syn_week_dat$ID == params$patient_id)[1]
 )
 
-
 # Function to rescale a column to a specific range
 # what about NaN??
 rescale_to_range <- function(x, new_min, new_max) {
@@ -333,13 +332,11 @@ create_current_week_summary_bar_chart <- function(){
     breaks <- seq(0, 100, 20)
     labels <- c("0\n", "20", "40", "60", "80", "100")
 
-    # separate the Total
-    panel_spacing <- rep(0, length(symptoms) - 1)
-    panel_spacing[length(panel_spacing)] <- 1
+    # get the maximum value to define the axis limits
+    max_value <- max(unlist(summary_df[sapply(summary_df, is.numeric)]), na.rm = TRUE)
 
-    g <- ggplot(summary_df, aes(x = Symptom, y = Value, fill = (Value - Median)/Width)) +
-        # scale_x_discrete(limits = rev(levels(summary_df$Symptom))) +
-        scale_y_continuous("Symptom level", breaks = breaks, labels = labels) +
+    main <- ggplot(summary_df[(summary_df$Symptom != "Total"),], aes(x = Symptom, y = Value, fill = (Value - Median)/Width)) +
+        scale_y_continuous("", breaks = breaks, labels = labels, limits = c(0, max_value)) +
         geom_bar(stat = "identity", fill = "white", color = "black", size = 1.5) + 
         geom_bar(stat = "identity") + 
         scale_fill_gradient2(
@@ -351,22 +348,60 @@ create_current_week_summary_bar_chart <- function(){
             oob = scales::squish
         ) +    
         geom_errorbar(aes(y = NULL, ymin = Median, ymax = Median), width = 0.75, color = "darkgray", size = 3) +
-        # geom_vline(xintercept = 0.4) + 
-        # geom_vline(xintercept = 1.6) + 
         facet_grid(Symptom ~ ., 
             scales = "free_y", 
-            switch = "both",
-        ) + 
-        coord_flip() + 
+            switch = "both"
+        ) +
+        coord_flip() +
         guides(fill = FALSE) +
         theme_bw() +
+        xlab("") + 
         theme(
-            panel.spacing = unit(panel_spacing, "lines"),
+            panel.spacing = unit(0, "lines"),
             strip.text = element_text(size = 0, margin = margin(0,0,0,0)),
-            plot.margin = margin(0.25, 0, 0.25, 0.25, "cm"),
+            plot.margin = margin(0.7, 0.09, 0.25, 0.25, "cm"),
             panel.grid.major = element_blank(), 
             panel.grid.minor = element_blank(),
-        )
+         ) 
+
+    total <- ggplot(summary_df[(summary_df$Symptom == "Total"),], aes(x = Symptom, y = Value, fill = (Value - Median)/Width)) +
+        scale_x_discrete(breaks = "", labels = "") +
+        scale_y_continuous("Symptom level", breaks = breaks, labels = labels, limits = c(0, max_value)) +
+        geom_bar(stat = "identity", fill = "white", color = "black", size = 1.5) + 
+        geom_bar(stat = "identity") + 
+        scale_fill_gradient2(
+            low = custom_palette[1], 
+            mid = custom_palette[2], 
+            high = custom_palette[3],
+            midpoint = 0, 
+            limits = c(-1,1),
+            oob = scales::squish
+        ) +    
+        geom_errorbar(aes(y = NULL, ymin = Median, ymax = Median), width = 0.75, color = "darkgray", size = 3) +
+        facet_grid(Symptom ~ ., 
+            scales = "free_y", 
+            switch = "both"
+        ) +
+        coord_flip() +
+        guides(fill = FALSE) +
+        theme_bw() +
+        xlab("") + 
+        theme(
+            strip.text = element_text(size = 0, margin = margin(0,0,0,0)),
+            plot.margin = margin(0., 0.09, 0.25, 0.25, "cm"),
+            panel.grid.major = element_blank(), 
+            panel.grid.minor = element_blank(),
+         ) 
+
+    g <- plot_grid(main, total, 
+        labels = c('Symptom', 'Total'), 
+        rel_heights = c(length(symptoms) - 1, 1.4),
+        label_y = c(1.01, 1.2),
+        label_x = c(0.01,0.05),
+        ncol = 1,
+        align = "v",
+        axis = "b"
+    )
 
 
     return(g)
@@ -427,6 +462,7 @@ create_time_series_line_plot <- function(){
     # for labelling
     breaks <- seq(0, 24, 4)
     labels <- c("0\n(baseline)", "4", "8", "12", "16", "20", "24")
+    labels2 <- c("0", "4", "8", "12", "16", "20", "24")
 
     # function to calculate custom breaks
     custom_breaks <- function(data, n_breaks = 4, tol = 0.5) {
@@ -445,14 +481,10 @@ create_time_series_line_plot <- function(){
         return(breaks)
     }
 
-    # separate the Total
-    panel_spacing <- rep(0, length(symptoms) - 1)
-    panel_spacing[length(panel_spacing)] <- 1
-
-    g <- ggplot(merged_df, aes(x = Week, y = Median)) +
+    main <- ggplot(merged_df[(merged_df$Symptom != "Total"),], aes(x = Week, y = Median)) +
         geom_line(color = "darkgray", linetype = "dashed", size = 1.5) +
-        geom_line(data = merged_df_clean_limit_week, aes(y = Value)) +
-        geom_point(data = merged_df_clean_limit_week, aes(y = Value, fill = (Value - Median)/Width), shape = 21, color = "black", size = 4, stroke = 1.5) + 
+        geom_line(data = merged_df_clean_limit_week[(merged_df_clean_limit_week$Symptom != "Total"),], aes(y = Value)) +
+        geom_point(data = merged_df_clean_limit_week[(merged_df_clean_limit_week$Symptom != "Total"),], aes(y = Value, fill = (Value - Median)/Width), shape = 21, color = "black", size = 4, stroke = 1.5) + 
         scale_fill_gradient2(
             low = custom_palette[1], 
             mid = custom_palette[2], 
@@ -461,13 +493,49 @@ create_time_series_line_plot <- function(){
             limits = c(-1, 1),
             oob = scales::squish
         ) +   
-        # geom_hline(yintercept = 0) + 
+        facet_grid(Symptom ~ ., 
+            scales = "free_y", 
+            switch = "both",
+        ) + 
+        scale_x_continuous("", breaks = breaks, labels = labels2) + 
+        scale_y_continuous("Symptom level", expand = expansion(mult = c(0.1, 0.25)),
+            breaks = function(x) {
+                return(custom_breaks(x))
+            },
+            position = "right"
+        ) +
+        expand_limits(x = c(-1, 26)) + 
+        ylab("") + 
+        # theme_void() + 
+        guides(fill = FALSE) +
+        theme_bw() + 
+        theme(
+            panel.spacing = unit(0, "lines"),
+            strip.text = element_text(size = 0, margin = margin(0,0,0,0)),
+            plot.margin = margin(0.7, 0.25, 0.6, 0.1, "cm"),
+            panel.grid.major = element_blank(), 
+            panel.grid.minor = element_blank(),
+            axis.title.y.right = element_text(margin = margin(l = 10))
+        )  
+
+    total <- ggplot(merged_df[(merged_df$Symptom == "Total"),], aes(x = Week, y = Median)) +
+        geom_line(color = "darkgray", linetype = "dashed", size = 1.5) +
+        geom_line(data = merged_df_clean_limit_week[(merged_df_clean_limit_week$Symptom == "Total"),], aes(y = Value)) +
+        geom_point(data = merged_df_clean_limit_week[(merged_df_clean_limit_week$Symptom == "Total"),], aes(y = Value, fill = (Value - Median)/Width), shape = 21, color = "black", size = 4, stroke = 1.5) + 
+        scale_fill_gradient2(
+            low = custom_palette[1], 
+            mid = custom_palette[2], 
+            high = custom_palette[3],
+            midpoint = 0, 
+            limits = c(-1, 1),
+            oob = scales::squish
+        ) +   
         facet_grid(Symptom ~ ., 
             scales = "free_y", 
             switch = "both",
         ) + 
         scale_x_continuous("Weeks since procedure", breaks = breaks, labels = labels) + 
-        scale_y_continuous("Symptom level", expand = expansion(mult = c(0, 0.25)),
+        scale_y_continuous("", expand = expansion(mult = c(0.1, 0.25)),
             breaks = function(x) {
                 return(custom_breaks(x))
             },
@@ -480,13 +548,18 @@ create_time_series_line_plot <- function(){
         theme_bw() + 
         theme(
             strip.text = element_text(size = 0, margin = margin(0,0,0,0)),
-            plot.margin = margin(0.25, 0.25, 0.25, 0.1, "cm"),
-            panel.spacing = unit(panel_spacing, "lines"),
+            plot.margin = margin(0., 0.25, 0.25, 0.1, "cm"),
             panel.grid.major = element_blank(), 
             panel.grid.minor = element_blank(),
             axis.title.y.right = element_text(margin = margin(l = 10))
-
         )  
+
+    g <- plot_grid(main, total, 
+        rel_heights = c(length(symptoms) - 1, 1.4),
+        ncol = 1,
+        align = "v",
+        axis = "b"
+    )
 
     # create another plot just for the legend (not sure there's a simpler way to do this!)
     g_legend <- ggplot(merged_df, aes(x = Week, y = Median)) +
@@ -531,7 +604,6 @@ create_time_series_line_plot <- function(){
         )
     )
 }
-
 ```
 
 
