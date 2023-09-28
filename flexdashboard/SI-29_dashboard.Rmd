@@ -58,6 +58,7 @@ library(gt)
 library(dplyr)
 library(tidyr)
 library(cowplot)
+library(magick)
 
 # for renaming columns
 splom_vars <- c(
@@ -359,7 +360,7 @@ create_current_week_summary_bar_chart <- function(){
         theme(
             panel.spacing = unit(0, "lines"),
             strip.text = element_text(size = 0, margin = margin(0,0,0,0)),
-            plot.margin = margin(0.7, 0.09, 0.25, 0.25, "cm"),
+            plot.margin = margin(0.7, 0.09, 0.85, 5, "cm"),
             panel.grid.major = element_blank(), 
             panel.grid.minor = element_blank(),
          ) 
@@ -388,7 +389,7 @@ create_current_week_summary_bar_chart <- function(){
         xlab("") + 
         theme(
             strip.text = element_text(size = 0, margin = margin(0,0,0,0)),
-            plot.margin = margin(0., 0.09, 0.25, 0.25, "cm"),
+            plot.margin = margin(0., 0.09, 0.25, 5, "cm"),
             panel.grid.major = element_blank(), 
             panel.grid.minor = element_blank(),
          ) 
@@ -396,8 +397,8 @@ create_current_week_summary_bar_chart <- function(){
     g <- plot_grid(main, total, 
         labels = c('Symptom', 'Total'), 
         rel_heights = c(length(symptoms) - 1, 1.4),
-        label_y = c(1.01, 1.2),
-        label_x = c(0.01,0.05),
+        label_y = c(1.01, 1.25),
+        label_x = c(0.25,0.37),
         ncol = 1,
         align = "v",
         axis = "b"
@@ -497,7 +498,7 @@ create_time_series_line_plot <- function(){
             scales = "free_y", 
             switch = "both",
         ) + 
-        scale_x_continuous("", breaks = breaks, labels = labels2) + 
+        scale_x_continuous("", breaks = breaks, labels = labels2, limits = c(0, 24)) + 
         scale_y_continuous("Symptom level", expand = expansion(mult = c(0.1, 0.25)),
             breaks = function(x) {
                 return(custom_breaks(x))
@@ -512,7 +513,7 @@ create_time_series_line_plot <- function(){
         theme(
             panel.spacing = unit(0, "lines"),
             strip.text = element_text(size = 0, margin = margin(0,0,0,0)),
-            plot.margin = margin(0.7, 0.25, 0.6, 0.1, "cm"),
+            plot.margin = margin(0.7, 7, 1.2, 0.1, "cm"),
             panel.grid.major = element_blank(), 
             panel.grid.minor = element_blank(),
             axis.title.y.right = element_text(margin = margin(l = 10))
@@ -534,7 +535,7 @@ create_time_series_line_plot <- function(){
             scales = "free_y", 
             switch = "both",
         ) + 
-        scale_x_continuous("Weeks since procedure", breaks = breaks, labels = labels) + 
+        scale_x_continuous("Weeks since procedure", breaks = breaks, labels = labels, limits = c(0, 24)) + 
         scale_y_continuous("", expand = expansion(mult = c(0.1, 0.25)),
             breaks = function(x) {
                 return(custom_breaks(x))
@@ -548,11 +549,11 @@ create_time_series_line_plot <- function(){
         theme_bw() + 
         theme(
             strip.text = element_text(size = 0, margin = margin(0,0,0,0)),
-            plot.margin = margin(0., 0.25, 0.25, 0.1, "cm"),
+            plot.margin = margin(0., 7, 0.25, 0.1, "cm"),
             panel.grid.major = element_blank(), 
             panel.grid.minor = element_blank(),
             axis.title.y.right = element_text(margin = margin(l = 10))
-        )  
+        ) 
 
     g <- plot_grid(main, total, 
         rel_heights = c(length(symptoms) - 1, 1.4),
@@ -562,6 +563,8 @@ create_time_series_line_plot <- function(){
     )
 
     # create another plot just for the legend (not sure there's a simpler way to do this!)
+    breaks <- c(-1, 1)
+    labels <- c("Below\nreference\npopulation", "Above\nreference\npopulation")
     g_legend <- ggplot(merged_df, aes(x = Week, y = Median)) +
         geom_line(color = "darkgray", linetype = "dashed", size = 1.5) +
         geom_line(data = merged_df_clean_limit_week, aes(y = Value)) +
@@ -572,11 +575,13 @@ create_time_series_line_plot <- function(){
             high = custom_palette[3],
             midpoint = 0, 
             limits = c(-1, 1),
-            oob = scales::squish
+            oob = scales::squish,
+            breaks = breaks,
+            labels = labels
         ) +    
          guides(
             fill = guide_colorbar(
-                title = "Scaled offset from median of reference population",
+                title = "",#Scaled offset from median of reference population",
                 title.position = "bottom",
                 title.hjust = 0.5,
                 title.vjust = 0,
@@ -586,11 +591,11 @@ create_time_series_line_plot <- function(){
         theme_bw() + 
         theme(
             legend.position = "bottom",           
-            legend.key.width = unit(2, "cm"),
+            legend.key.width = unit(1, "cm"),
             legend.title.align = 0.5,
             legend.margin = margin(margin(10,0,0,0,"cm")),
             legend.title = element_text(size = 9), 
-            legend.text = element_text(size = 8, color = "#555555")
+            legend.text = element_text(size = 12, color = "#555555")
         )   
 
 
@@ -604,6 +609,45 @@ create_time_series_line_plot <- function(){
         )
     )
 }
+
+annotate_img <- function(p, acolor){
+    # save the image and then read it back in so that I can annotate it more easily!
+    tmp <- tempfile("image0", fileext = ".png")
+    ggsave(tmp, p, width = 12, height = 8)
+    img <- image_read(tmp)  %>%
+        # left plot label
+        image_annotate(sprintf('\u2191'), size = 200, color = acolor,
+            boxcolor = "transparent", degrees = 90, location = "+780+1650") %>%
+        image_annotate("Plots on the left show\nyour present symptoms\nin color-filled rectangles", size = 60, color = acolor,
+            boxcolor = "transparent", degrees = 0, location = "+170+1640", font = 'Times') %>%
+        # right plot label
+        image_annotate(sprintf('\u2191'), size = 200, color = acolor,
+            boxcolor = "transparent", degrees = -90, location = "+2800+1800") %>%
+        image_annotate("Plots on the right show\nyour symptoms over time\nin color-filled circles", size = 60, color = acolor,
+            boxcolor = "transparent", degrees = 0, location = "+2890+1640", font = 'Times')  %>%
+        # left plot reference (TODO - link x position to actual total reference value)
+        image_annotate(sprintf('\u2191'), size = 200, color = acolor,
+            boxcolor = "transparent", degrees = 30, location = "+940+1750")  %>%
+        image_annotate("Reference population", size = 60, color = acolor,
+            boxcolor = "transparent", degrees = 0, location = "+500+1900", font = 'Times')  %>%      
+        # right plot reference (TODO - link x position to actual total reference value)
+        image_annotate(sprintf('\u2191'), size = 200, color = acolor,
+            boxcolor = "transparent", degrees = -30, location = "+2460+1850")  %>%
+        image_annotate("Reference population", size = 60, color = acolor,
+            boxcolor = "transparent", degrees = 0, location = "+2580+1900", font = 'Times')  %>%      
+        # left plot explanation (TODO - link x position to actual patient value and automatic text)
+        image_annotate(sprintf('\u2191'), size = 200, color = acolor,
+            boxcolor = "transparent", degrees = 210, location = "+1190+1660")  %>%
+        image_annotate("Your total score is nearly\nthe same as the reference population", size = 60, color = acolor,
+            boxcolor = "transparent", degrees = 0, location = "+1180+1480", font = 'Times')  %>%
+        # left plot explanation (TODO - link x position to actual patient value and automatic text)
+        image_annotate(sprintf('\u2191'), size = 200, color = acolor,
+            boxcolor = "transparent", degrees = 210, location = "+2330+1750")  %>%
+        image_annotate("Your total score has decreased\nsince your last visit", size = 60, color = acolor,
+            boxcolor = "transparent", degrees = 0, location = "+2330+1480", font = 'Times') 
+
+    return(img) 
+}
 ```
 
 
@@ -611,7 +655,7 @@ create_time_series_line_plot <- function(){
 Plots
 =====================================   
 
-Row {data-height=800}
+Row {data-height=800, id="chart1"}
 -------------------------------------
 
 ### Symptoms Summary for Patient `r params$patient_id` at Week `r params$patient_week`
@@ -620,10 +664,17 @@ Row {data-height=800}
 bar_chart <- create_current_week_summary_bar_chart()
 line_plot <- create_time_series_line_plot()
 
-g <- plot_grid(bar_chart, line_plot$plot, ncol = 2, align = "h", rel_widths = c(1,0.92), axis = "l")
-plot_grid(g, line_plot$legend, ncol = 1, rel_heights = c(1, 0.2))
+g <- plot_grid(bar_chart, line_plot$plot, ncol = 2, align = "h", rel_widths = c(0.49,0.51), axis = "l")
+p <- plot_grid(g, line_plot$legend, ncol = 1, rel_heights = c(1, 0.2))
+
+
+img <- annotate_img(p, "#a200aa")
+image_trim(img)
+
 ```
 
+
+<!-- 
 Row {data-height=125}
 -------------------------------------
 
@@ -632,7 +683,8 @@ The figures above show results from survey(s) you filled out recording the level
 
 The panels on the left show your current symptoms in color-filled rectangles compared to a reference population shown in gray lines. The panels on the right show your symptoms over time in color-filled circles compared to the same reference population shown in gray dashed lines. 
 
-In all panels, the color indicates how your symptom level compares with that of the reference population, with blue being lower and orange being higher than the reference population, as indicated by the colorbar at the bottom.  
+In all panels, the color indicates how your symptom level compares with that of the reference population, with blue being lower and orange being higher than the reference population, as indicated by the colorbar at the bottom.   
+-->
 
 
 
