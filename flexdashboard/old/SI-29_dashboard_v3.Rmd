@@ -1,15 +1,14 @@
 ---
 title: "LURN SI-29 synthetic data dashboard"
 params:
-    patient_id: 3
-    patient_week: 0
-    show_table: FALSE
-    annotate_plot: FALSE
+  patient_id: 3
+  patient_week: 0
+  show_table: FALSE
 output: 
-    flexdashboard::flex_dashboard:
-        orientation: rows
-        vertical_layout: fill
-        horizontal_layout: fill
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+    horizontal_layout: fill
 ---
 
 ```{css}
@@ -60,7 +59,6 @@ library(dplyr)
 library(tidyr)
 library(cowplot)
 library(magick)
-library(ggnewscale)
 
 # for renaming columns
 splom_vars <- c(
@@ -101,9 +99,15 @@ input_params <- list(
     patient_row = which(syn_week_dat$ID == params$patient_id)[1]
 )
 
-# Rescale bother to 0-100
-syn_week_dat$Bother <- syn_week_dat$Bother/3*100
-syn_long_dat$Bother <- syn_long_dat$Bother/3*100
+# Function to rescale a column to a specific range
+# what about NaN??
+rescale_to_range <- function(x, new_min, new_max) {
+    scaled <- (x - min(x, na.rm = TRUE))/(max(x, na.rm = TRUE) - min(x, na.rm = TRUE))  # Scale to range [0, 1]
+    scaled_rescaled <- ifelse(is.na(x), 0, scaled*(new_max - new_min) + new_min)  # Rescale to new range
+    return(scaled_rescaled)
+}
+syn_week_dat$Bother <- rescale_to_range(syn_week_dat$Bother, 0, 100)
+syn_long_dat$Bother <- rescale_to_range(syn_long_dat$Bother, 0, 100)
 
 
 create_full_table <- function(){
@@ -307,80 +311,44 @@ create_current_week_summary_bar_chart <- function(){
         Percentile_16 = apply(df, 2, function(x) quantile(x, probs = 0.16, na.rm = TRUE)),
         Percentile_84 = apply(df, 2, function(x) quantile(x, probs = 0.84, na.rm = TRUE))
     )
+
+    # Add a row for the full 1sigma width
+    summary_df$Width <- summary_df$Percentile_84 - summary_df$Percentile_16
+
+    # what should we do if width == 0??
+    summary_df$Width[summary_df$Width == 0] <- 1.
+
     # add the symptoms in the correct order
     summary_df$Symptom <- factor(rownames(summary_df), levels = symptoms)
 
-    # create a dataframe for the reference population
-    df_long <- pivot_longer(df, cols = symptoms, names_to = "Symptom", values_to = "Value")
-    df_long$Symptom <- factor(df_long$Symptom, levels = symptoms)
-
-
-    # custom color palette
-    custom_palette <- colorRamp(c("#2780E3", "white", "#ff7518"))
-
-    # Function to get an interpolated color at a specific value
-    get_interpolated_color <- function(value) {
-        return(rgb(custom_palette(value), maxColorValue = 255))
-    }
-
     # get the patient data for the bar chart
-    p <- select(syn_week_dat[input_params$patient_row, ], -c(ID, Week))
-    df_patient <- as.data.frame(t(p))
-    names(df_patient) <- c('Value')
-    df_patient$Symptom <- factor(rownames(df_patient), levels = symptoms)
+    df_patient <- select(syn_week_dat[input_params$patient_row, ], -c(ID, Week))
+    p <- as.data.frame(t(df_patient))
+    summary_df$Value <- p[, 1]
 
-    # I wonder if there's a way to get the percentiles without a for loop?
-    df_patient$Percentile <- 0
-    df_patient$Color <- '#D3D3D3'
-    for (s in symptoms){
-        val <- df_patient[s,]$Value
-        if (!is.nan(val)  & !is.na(val)){
-            percentile <- ecdf(df[[s]])
-            df_patient[s,]$Percentile <- percentile(val)
-            df_patient[s,]$Color <- get_interpolated_color(percentile(val))
-        }
-    }
-    summary_df$Value <- df_patient$Value
-    summary_df$Percentile <- df_patient$Percentile
-    summary_df$Color <- df_patient$Color
+    # Define a custom color palette
+    custom_palette <- c("#2780E3", "white", "#ff7518")
 
     # for labelling (so that I can match the size of the other plot)
     breaks <- seq(0, 100, 20)
     labels <- c("0\n", "20", "40", "60", "80", "100")
 
     # get the maximum value to define the axis limits
-    # max_value <- max(unlist(df_patient[sapply(df_patient, is.numeric)]), na.rm = TRUE)
-    max_value <- 100
+    max_value <- max(unlist(summary_df[sapply(summary_df, is.numeric)]), na.rm = TRUE)
 
-    main <- ggplot() +
-        stat_density(
-            data = df_long[(df_long$Symptom != "Total"),],
-            aes(x = Symptom, y = Value, fill = after_stat(scaled),),
-            geom = "raster",
-            position = "identity",
-            bounds = c(0,100),
-            show.legend = FALSE
-        ) +
-        scale_fill_gradient2(low = "white", high = "darkgray", limits = c(0., 1)) + 
-        new_scale_fill() +
-        geom_errorbar(
-            data = summary_df[(summary_df$Symptom != "Total"),],
-            aes(x = Symptom, y = NULL, ymin = Median, ymax = Median), 
-            width = 1, 
-            color = "darkgray", 
-            size = 3
-        ) +
-        geom_bar(
-            data = df_patient[(summary_df$Symptom != "Total"),],
-            aes(x = Symptom, y = Value, fill = Color), 
-            stat = "identity", 
-            color = "black", 
-            width = 0.7,
-            size = 1
-        ) +
-        scale_fill_identity() +   
-        scale_x_discrete(expand = c(0,0)) +
+    main <- ggplot(summary_df[(summary_df$Symptom != "Total"),], aes(x = Symptom, y = Value, fill = (Value - Median)/Width)) +
         scale_y_continuous("", breaks = breaks, labels = labels, limits = c(0, max_value)) +
+        geom_bar(stat = "identity", fill = "white", color = "black", size = 1.5) + 
+        geom_bar(stat = "identity") + 
+        scale_fill_gradient2(
+            low = custom_palette[1], 
+            mid = custom_palette[2], 
+            high = custom_palette[3],
+            midpoint = 0, 
+            limits = c(-1,1),
+            oob = scales::squish
+        ) +    
+        geom_errorbar(aes(y = NULL, ymin = Median, ymax = Median), width = 0.75, color = "darkgray", size = 3) +
         facet_grid(Symptom ~ ., 
             scales = "free_y", 
             switch = "both"
@@ -397,35 +365,20 @@ create_current_week_summary_bar_chart <- function(){
             panel.grid.minor = element_blank(),
          ) 
 
-    total <- ggplot() +
-        stat_density(
-            data = df_long[(df_long$Symptom == "Total"),],
-            aes(x = Symptom, y = Value, fill = after_stat(scaled),),
-            geom = "raster",
-            position = "identity",
-            bounds = c(0,100),
-            show.legend = FALSE
-        ) +
-        scale_fill_gradient2(low = "white", high = "darkgray", limits = c(0., 1)) + 
-        new_scale_fill() +
-        geom_errorbar(
-            data = summary_df[(summary_df$Symptom == "Total"),],
-            aes(x = Symptom, y = NULL, ymin = Median, ymax = Median), 
-            width = 1, 
-            color = "darkgray", 
-            size = 3
-        ) +
-        geom_bar(
-            data = df_patient[(summary_df$Symptom == "Total"),],
-            aes(x = Symptom, y = Value, fill = Color), 
-            stat = "identity", 
-            color = "black", 
-            width = 0.7,
-            size = 1
-        ) +
-        scale_fill_identity() +   
-        scale_x_discrete(breaks = "", labels = "", expand = c(0,0)) +
+    total <- ggplot(summary_df[(summary_df$Symptom == "Total"),], aes(x = Symptom, y = Value, fill = (Value - Median)/Width)) +
+        scale_x_discrete(breaks = "", labels = "") +
         scale_y_continuous("Symptom level", breaks = breaks, labels = labels, limits = c(0, max_value)) +
+        geom_bar(stat = "identity", fill = "white", color = "black", size = 1.5) + 
+        geom_bar(stat = "identity") + 
+        scale_fill_gradient2(
+            low = custom_palette[1], 
+            mid = custom_palette[2], 
+            high = custom_palette[3],
+            midpoint = 0, 
+            limits = c(-1,1),
+            oob = scales::squish
+        ) +    
+        geom_errorbar(aes(y = NULL, ymin = Median, ymax = Median), width = 0.75, color = "darkgray", size = 3) +
         facet_grid(Symptom ~ ., 
             scales = "free_y", 
             switch = "both"
@@ -482,56 +435,30 @@ create_time_series_line_plot <- function(){
             names_to = "Symptom",
             values_to = "Q3")
 
-    # for the reference population
-    syn_long_dat_long <- na.omit(pivot_longer(syn_long_dat, cols = c(symptoms), names_to = "Symptom", values_to = "Value"))
-    syn_long_dat_long$Symptom <- factor(syn_long_dat_long$Symptom, levels = symptoms)
-
-    # custom color palette
-    cp <- c("#2780E3", "white", "#ff7518")
-    custom_palette <- colorRamp(cp)
-
-    # Function to get an interpolated color at a specific value
-    get_interpolated_color <- function(value) {
-        return(rgb(custom_palette(value), maxColorValue = 255))
-    }
-
-    # get the patient data for the bar chart
-    p <- select(syn_long_dat[syn_long_dat$ID == input_params$patient_id, ], -ID)
-    patient_df <- p %>%
+    patient_data <- select(syn_long_dat[syn_long_dat$ID == input_params$patient_id, ], -ID)
+    patient_data_t <- patient_data %>%
         pivot_longer(cols = -c(Week),
             names_to = "Symptom",
             values_to = "Value")
 
-    # I wonder if there's a way to get the percentiles without a for loop?
-    patient_df$Percentile <- 0
-    patient_df$Color <- '#D3D3D3'
-    for (row in 1:nrow(patient_df)) {
-        val <- patient_df[row, "Value"][[1]]
-        sym <- patient_df[row, "Symptom"][[1]]
-        wk <- patient_df[row, "Week"][[1]]
-        if (!is.nan(val) & !is.na(val)){
-            ref <- syn_long_dat[syn_long_dat$Week == wk, sym]
-            percentile <- ecdf(ref)
-            patient_df[row, 'Percentile'] <- percentile(val)
-            patient_df[row, 'Color'] <- get_interpolated_color(percentile(val))
-        }
-    }
-
-    # set the symptoms as a factor and in the correct order
-    patient_df$Symptom <- factor(patient_df$Symptom, levels = symptoms)
-    patient_df <- patient_df %>%
-        mutate(srt = match(Symptom, symptoms)) %>%
-        arrange(srt) %>%
-        select(-srt)
-
-    # add the patient info to the merged_df
     merged_df <- merge(median_values_t, Q1_values_t, by = c("Week", "Symptom")) %>%
         merge(Q3_values_t, by = c("Week", "Symptom")) %>%
-        merge(patient_df, by = c("Week", "Symptom"))
+        merge(patient_data_t, by = c("Week", "Symptom"))
+        
+
+    # Add a row for the full 1sigma width
+    merged_df$Width <- merged_df$Q3 - merged_df$Q1
+    # what should I do with width == 0 ??!!
+    merged_df$Width[merged_df$Width == 0] <- 1.
+
+    # set the symptoms as a factor and in the correct order
     merged_df$Symptom <- factor(merged_df$Symptom, levels = symptoms)
 
     # omit the rows with nan values??
     merged_df_clean_limit_week <- na.omit(merged_df[merged_df$Week <= input_params$patient_week, ])
+
+    # custom color palette
+    custom_palette <- c("#2780E3", "white", "#ff7518")
 
     # for labelling
     breaks <- seq(0, 24, 4)
@@ -555,54 +482,24 @@ create_time_series_line_plot <- function(){
         return(breaks)
     }
 
-    # Calculate min and max values for each facet so that I can limit the syn_long_dat_long dataframe
-    # (this way the y axis scaling is fixed by the patient data and not the reference population)
-    limits <- merged_df_clean_limit_week %>%
-        group_by(Symptom) %>%
-        summarize(min_y = min(Value, na.rm = TRUE), max_y = max(Value, na.rm = TRUE))
-    
-    for (s in symptoms){
-        ind <-  which(syn_long_dat_long$Symptom == s & syn_long_dat_long$Value > limits[limits$Symptom == s, ]$max_y*1.2)
-        syn_long_dat_long <- syn_long_dat_long[-ind, ]
-    }
-
-    main <- ggplot() +
-        stat_density_2d(
-            data = syn_long_dat_long[(syn_long_dat_long$Symptom != "Total"),],
-            aes(x = Week, y = Value, fill = after_stat(ndensity),),
-            geom = "raster",
-            position = "identity",
-            h = c(8, 25),
-            contour = FALSE,
-            show.legend = FALSE
-        ) +
-        scale_fill_gradient2(low = "white", high = "darkgray", limits = c(0., 1)) + 
-        new_scale_fill() +
-        geom_line(
-            data = merged_df[(merged_df$Symptom != "Total"),],
-            aes(x = Week, y = Median),
-            color = "darkgray", 
-            # linetype = "dashed", 
-            size = 1.5
-        ) +
-        geom_line(
-            data = merged_df_clean_limit_week[(merged_df_clean_limit_week$Symptom != "Total"),], 
-            aes(x = Week, y = Value)
-        ) +
-        geom_point(
-            data = merged_df_clean_limit_week[(merged_df_clean_limit_week$Symptom != "Total"),], 
-            aes(x = Week, y = Value, fill = Color), 
-            shape = 21, 
-            color = "black", 
-            size = 4, 
-            stroke = 1.5) + 
-        scale_fill_identity() + 
+    main <- ggplot(merged_df[(merged_df$Symptom != "Total"),], aes(x = Week, y = Median)) +
+        geom_line(color = "darkgray", linetype = "dashed", size = 1.5) +
+        geom_line(data = merged_df_clean_limit_week[(merged_df_clean_limit_week$Symptom != "Total"),], aes(y = Value)) +
+        geom_point(data = merged_df_clean_limit_week[(merged_df_clean_limit_week$Symptom != "Total"),], aes(y = Value, fill = (Value - Median)/Width), shape = 21, color = "black", size = 4, stroke = 1.5) + 
+        scale_fill_gradient2(
+            low = custom_palette[1], 
+            mid = custom_palette[2], 
+            high = custom_palette[3],
+            midpoint = 0, 
+            limits = c(-1, 1),
+            oob = scales::squish
+        ) +   
         facet_grid(Symptom ~ ., 
             scales = "free_y", 
             switch = "both",
         ) + 
         scale_x_continuous("", breaks = breaks, labels = labels2, limits = c(0, 24)) + 
-        scale_y_continuous("Symptom level", expand = expansion(mult = c(0, 0)),
+        scale_y_continuous("Symptom level", expand = expansion(mult = c(0.1, 0.25)),
             breaks = function(x) {
                 return(custom_breaks(x))
             },
@@ -620,46 +517,26 @@ create_time_series_line_plot <- function(){
             panel.grid.major = element_blank(), 
             panel.grid.minor = element_blank(),
             axis.title.y.right = element_text(margin = margin(l = 10))
-        ) 
+        )  
 
-
-    total <- ggplot() +
-        stat_density_2d(
-            data = syn_long_dat_long[(syn_long_dat_long$Symptom == "Total"),],
-            aes(x = Week, y = Value, fill = after_stat(ndensity),),
-            geom = "raster",
-            h = c(8, 25),
-            contour = FALSE,
-            show.legend = FALSE
-        ) +
-        scale_fill_gradient2(low = "white", high = "darkgray", limits = c(0., 1)) + 
-        new_scale_fill() +
-        geom_line(
-            data = merged_df[(merged_df$Symptom == "Total"),],
-            aes(x = Week, y = Median),
-            color = "darkgray", 
-            # linetype = "dashed", 
-            size = 1.5
-        ) +
-        geom_line(
-            data = merged_df_clean_limit_week[(merged_df_clean_limit_week$Symptom == "Total"),], 
-            aes(x = Week, y = Value)
-        ) +
-        geom_point(
-            data = merged_df_clean_limit_week[(merged_df_clean_limit_week$Symptom == "Total"),], 
-            aes(x = Week, y = Value, fill = Color), 
-            shape = 21, 
-            color = "black", 
-            size = 4, 
-            stroke = 1.5
-        ) + 
-        scale_fill_identity() +   
+    total <- ggplot(merged_df[(merged_df$Symptom == "Total"),], aes(x = Week, y = Median)) +
+        geom_line(color = "darkgray", linetype = "dashed", size = 1.5) +
+        geom_line(data = merged_df_clean_limit_week[(merged_df_clean_limit_week$Symptom == "Total"),], aes(y = Value)) +
+        geom_point(data = merged_df_clean_limit_week[(merged_df_clean_limit_week$Symptom == "Total"),], aes(y = Value, fill = (Value - Median)/Width), shape = 21, color = "black", size = 4, stroke = 1.5) + 
+        scale_fill_gradient2(
+            low = custom_palette[1], 
+            mid = custom_palette[2], 
+            high = custom_palette[3],
+            midpoint = 0, 
+            limits = c(-1, 1),
+            oob = scales::squish
+        ) +   
         facet_grid(Symptom ~ ., 
             scales = "free_y", 
             switch = "both",
         ) + 
         scale_x_continuous("Weeks since procedure", breaks = breaks, labels = labels, limits = c(0, 24)) + 
-        scale_y_continuous("", expand = expansion(mult = c(0, 0)),
+        scale_y_continuous("", expand = expansion(mult = c(0.1, 0.25)),
             breaks = function(x) {
                 return(custom_breaks(x))
             },
@@ -688,15 +565,14 @@ create_time_series_line_plot <- function(){
     # create another plot just for the legend (not sure there's a simpler way to do this!)
     breaks <- c(-1, 1)
     labels <- c("Below\nreference\npopulation", "Above\nreference\npopulation")
-    g_legend <- ggplot() +
-        geom_point(
-            data = merged_df_clean_limit_week, 
-            aes(x = Week, y = Value, fill = Percentile), 
-        ) + 
+    g_legend <- ggplot(merged_df, aes(x = Week, y = Median)) +
+        geom_line(color = "darkgray", linetype = "dashed", size = 1.5) +
+        geom_line(data = merged_df_clean_limit_week, aes(y = Value)) +
+        geom_point(data = merged_df_clean_limit_week, aes(y = Value, fill = (Value - Median)/Width), shape = 21, color = "black", size = 4, stroke = 1.5) + 
         scale_fill_gradient2(
-            low = cp[1], 
-            mid = cp[2], 
-            high = cp[3],
+            low = custom_palette[1], 
+            mid = custom_palette[2], 
+            high = custom_palette[3],
             midpoint = 0, 
             limits = c(-1, 1),
             oob = scales::squish,
@@ -734,42 +610,41 @@ create_time_series_line_plot <- function(){
     )
 }
 
-annotate_img <- function(img, acolor){
-    img <- img  %>%
+annotate_img <- function(p, acolor){
+    # save the image and then read it back in so that I can annotate it more easily!
+    tmp <- tempfile("image0", fileext = ".png")
+    ggsave(tmp, p, width = 12, height = 8)
+    img <- image_read(tmp)  %>%
         # left plot label
-        # image_annotate(sprintf('\u2191'), size = 200, color = acolor,
-        #     boxcolor = "transparent", degrees = 90, location = "+780+1650") %>%
-        image_annotate("Plots on the left show\nyour present symptoms\nin color-filled rectangles.", 
-            size = 60, color = acolor, boxcolor = "transparent", degrees = 0, location = "+170+1640", font = 'Times') %>%
+        image_annotate(sprintf('\u2191'), size = 200, color = acolor,
+            boxcolor = "transparent", degrees = 90, location = "+780+1650") %>%
+        image_annotate("Plots on the left show\nyour present symptoms\nin color-filled rectangles", size = 60, color = acolor,
+            boxcolor = "transparent", degrees = 0, location = "+170+1640", font = 'Times') %>%
         # right plot label
-        # image_annotate(sprintf('\u2191'), size = 200, color = acolor,
-        #     boxcolor = "transparent", degrees = -90, location = "+2800+1800") %>%
-        image_annotate("Plots on the right show\nyour symptoms over time\nin color-filled circles.", 
-            size = 60, color = acolor, boxcolor = "transparent", degrees = 0, location = "+2890+1640", font = 'Times')  %>%
+        image_annotate(sprintf('\u2191'), size = 200, color = acolor,
+            boxcolor = "transparent", degrees = -90, location = "+2800+1800") %>%
+        image_annotate("Plots on the right show\nyour symptoms over time\nin color-filled circles", size = 60, color = acolor,
+            boxcolor = "transparent", degrees = 0, location = "+2890+1640", font = 'Times')  %>%
         # left plot reference (TODO - link x position to actual total reference value)
         image_annotate(sprintf('\u2191'), size = 200, color = acolor,
-            boxcolor = "transparent", degrees = 30, location = "+960+1780")  %>%
-        # image_annotate("Half of the reference population\nhave values inside the gray region", size = 60, color = acolor,
-        #     boxcolor = "transparent", degrees = 0, location = "+300+1900", font = 'Times')  %>% 
-        image_annotate("The reference population is shown in\ngrascale; darker gray means more patients\nwith that symptom value.", 
-            size = 60, color = acolor,  boxcolor = "transparent", degrees = 0, location = "+170+1900", font = 'Times')  %>%        
+            boxcolor = "transparent", degrees = 30, location = "+940+1750")  %>%
+        image_annotate("Reference population", size = 60, color = acolor,
+            boxcolor = "transparent", degrees = 0, location = "+500+1900", font = 'Times')  %>%      
         # right plot reference (TODO - link x position to actual total reference value)
         image_annotate(sprintf('\u2191'), size = 200, color = acolor,
             boxcolor = "transparent", degrees = -30, location = "+2460+1850")  %>%
-        # image_annotate("Half of the reference population\nhave values inside the gray region", size = 60, color = acolor,
-        #     boxcolor = "transparent", degrees = 0, location = "+2580+1900", font = 'Times')  %>%      
-        image_annotate("The reference population is shown in\ngrayscale; darker gray means more patients\nwith that symptom value.", 
-            size = 60, color = acolor, boxcolor = "transparent", degrees = 0, location = "+2580+1900", font = 'Times')  %>%   
+        image_annotate("Reference population", size = 60, color = acolor,
+            boxcolor = "transparent", degrees = 0, location = "+2580+1900", font = 'Times')  %>%      
         # left plot explanation (TODO - link x position to actual patient value and automatic text)
         image_annotate(sprintf('\u2191'), size = 200, color = acolor,
-            boxcolor = "transparent", degrees = 210, location = "+1110+1700")  %>%
-        image_annotate("Your total score is similar to\nthat of the reference population.", 
-            size = 60, color = acolor, boxcolor = "transparent", degrees = 0, location = "+1140+1480", font = 'Times')  %>%
+            boxcolor = "transparent", degrees = 210, location = "+1190+1660")  %>%
+        image_annotate("Your total score is nearly\nthe same as the reference population", size = 60, color = acolor,
+            boxcolor = "transparent", degrees = 0, location = "+1180+1480", font = 'Times')  %>%
         # left plot explanation (TODO - link x position to actual patient value and automatic text)
         image_annotate(sprintf('\u2191'), size = 200, color = acolor,
             boxcolor = "transparent", degrees = 210, location = "+2330+1750")  %>%
-        image_annotate("Your total score has decreased\nsince your last visit.", 
-            size = 60, color = acolor, boxcolor = "transparent", degrees = 0, location = "+2330+1480", font = 'Times') 
+        image_annotate("Your total score has decreased\nsince your last visit", size = 60, color = acolor,
+            boxcolor = "transparent", degrees = 0, location = "+2330+1480", font = 'Times') 
 
     return(img) 
 }
@@ -792,15 +667,9 @@ line_plot <- create_time_series_line_plot()
 g <- plot_grid(bar_chart, line_plot$plot, ncol = 2, align = "h", rel_widths = c(0.49,0.51), axis = "l")
 p <- plot_grid(g, line_plot$legend, ncol = 1, rel_heights = c(1, 0.2))
 
-# save the image and then read it back in so that I can annotate it more easily and have consistent sizing!
-tmp <- tempfile("image0", fileext = ".png")
-ggsave(tmp, p, width = 12, height = 8)
-img <- image_read(tmp)
 
-if (params$annotate_plot) img <- annotate_img(img, "#a200aa")
-
+img <- annotate_img(p, "#a200aa")
 image_trim(img)
-
 
 ```
 
