@@ -86,7 +86,7 @@ syn_long <- read.csv("../data/syn_long.csv", header = TRUE)
 patient_cells <- list()
 syn_long$ID <- factor(syn_long$ID)
 syn_long_dat <- syn_long[c("ID", "Week", splom_vars)]
-names(syn_long_dat)<- append(c("ID", "Week"), symptoms)
+names(syn_long_dat) <- append(c("ID", "Week"), symptoms)
 
 # grab the appropriate week for the current symptoms plot
 syn_week <- syn_long[syn_long$Week == params$patient_week, ]
