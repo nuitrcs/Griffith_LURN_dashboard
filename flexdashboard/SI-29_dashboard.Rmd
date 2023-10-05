@@ -315,41 +315,49 @@ create_current_week_summary_bar_chart <- function(){
     df_long$Symptom <- factor(df_long$Symptom, levels = symptoms)
 
 
-    # custom color palette
-    custom_palette <- colorRamp(c("#2780E3", "white", "#ff7518"))
+    # Define a custom color palette
+    # custom_palette <- c("#2780E3", "white", "#ff7518")
+    custom_palette <- c("#2780E3", "#D3E5F9", "white", "#FFE3D0", "#ff7518")
+    custom_palette_gray <- c("white",  "#F5F5F5", "#DCDCDC", "#BEBEBE", "#888888")
+    # Create a color ramp function using the custom palette
+    color_ramp <- colorRamp(custom_palette)
 
     # Function to get an interpolated color at a specific value
     get_interpolated_color <- function(value) {
-        return(rgb(custom_palette(value), maxColorValue = 255))
+        return(rgb(color_ramp(value), maxColorValue = 255))
     }
 
     # get the patient data for the bar chart
     p <- select(syn_week_dat[input_params$patient_row, ], -c(ID, Week))
-    df_patient <- as.data.frame(t(p))
-    names(df_patient) <- c('Value')
-    df_patient$Symptom <- factor(rownames(df_patient), levels = symptoms)
+    patient_df <- as.data.frame(t(p))
+    names(patient_df) <- c('Value')
+    patient_df$Symptom <- factor(rownames(patient_df), levels = symptoms)
 
     # I wonder if there's a way to get the percentiles without a for loop?
-    df_patient$Percentile <- 0
-    df_patient$Color <- '#D3D3D3'
+    patient_df$Percentile <- 0
+    patient_df$Color <- '#D3D3D3'
     for (s in symptoms){
-        val <- df_patient[s,]$Value
+        val <- patient_df[s,]$Value
+        ref <- df[[s]]
         if (!is.nan(val)  & !is.na(val)){
-            percentile <- ecdf(df[[s]])
-            df_patient[s,]$Percentile <- percentile(val)
-            df_patient[s,]$Color <- get_interpolated_color(percentile(val))
+            percentile <- ecdf(ref)
+            pct <- percentile(val)
+            # fix for scenarios where there every entry is the same
+            if (diff(range(ref, na.rm = TRUE)) == 0 & pct == 1) pct <- 0.5
+            patient_df[s,]$Percentile <- pct
+            patient_df[s,]$Color <- get_interpolated_color(pct)
         }
     }
-    summary_df$Value <- df_patient$Value
-    summary_df$Percentile <- df_patient$Percentile
-    summary_df$Color <- df_patient$Color
+    summary_df$Value <- patient_df$Value
+    summary_df$Percentile <- patient_df$Percentile
+    summary_df$Color <- patient_df$Color
 
     # for labelling (so that I can match the size of the other plot)
     breaks <- seq(0, 100, 20)
     labels <- c("0\n", "20", "40", "60", "80", "100")
 
     # get the maximum value to define the axis limits
-    # max_value <- max(unlist(df_patient[sapply(df_patient, is.numeric)]), na.rm = TRUE)
+    # max_value <- max(unlist(patient_df[sapply(patient_df, is.numeric)]), na.rm = TRUE)
     max_value <- 100
 
     main <- ggplot() +
@@ -361,17 +369,20 @@ create_current_week_summary_bar_chart <- function(){
             bounds = c(0,100),
             show.legend = FALSE
         ) +
-        scale_fill_gradient2(low = "white", high = "darkgray", limits = c(0., 1)) + 
-        new_scale_fill() +
-        geom_errorbar(
-            data = summary_df[(summary_df$Symptom != "Total"),],
-            aes(x = Symptom, y = NULL, ymin = Median, ymax = Median), 
-            width = 1, 
-            color = "darkgray", 
-            size = 3
+        scale_fill_gradientn(
+            colors = custom_palette_gray,
+            values = seq(0,1,by = 1/length(custom_palette_gray)),
         ) +
+        new_scale_fill() +
+        # geom_errorbar(
+        #     data = summary_df[(summary_df$Symptom != "Total"),],
+        #     aes(x = Symptom, y = NULL, ymin = Median, ymax = Median), 
+        #     width = 1, 
+        #     color = "darkgray", 
+        #     size = 3
+        # ) +
         geom_bar(
-            data = df_patient[(summary_df$Symptom != "Total"),],
+            data = patient_df[(summary_df$Symptom != "Total"),],
             aes(x = Symptom, y = Value, fill = Color), 
             stat = "identity", 
             color = "black", 
@@ -406,17 +417,20 @@ create_current_week_summary_bar_chart <- function(){
             bounds = c(0,100),
             show.legend = FALSE
         ) +
-        scale_fill_gradient2(low = "white", high = "darkgray", limits = c(0., 1)) + 
-        new_scale_fill() +
-        geom_errorbar(
-            data = summary_df[(summary_df$Symptom == "Total"),],
-            aes(x = Symptom, y = NULL, ymin = Median, ymax = Median), 
-            width = 1, 
-            color = "darkgray", 
-            size = 3
+        scale_fill_gradientn(
+            colors = custom_palette_gray,
+            values = seq(0,1,by = 1/length(custom_palette_gray)),
         ) +
+        new_scale_fill() +
+        # geom_errorbar(
+        #     data = summary_df[(summary_df$Symptom == "Total"),],
+        #     aes(x = Symptom, y = NULL, ymin = Median, ymax = Median), 
+        #     width = 1, 
+        #     color = "darkgray", 
+        #     size = 3
+        # ) +
         geom_bar(
-            data = df_patient[(summary_df$Symptom == "Total"),],
+            data = patient_df[(summary_df$Symptom == "Total"),],
             aes(x = Symptom, y = Value, fill = Color), 
             stat = "identity", 
             color = "black", 
@@ -486,13 +500,15 @@ create_time_series_line_plot <- function(){
     syn_long_dat_long <- na.omit(pivot_longer(syn_long_dat, cols = c(symptoms), names_to = "Symptom", values_to = "Value"))
     syn_long_dat_long$Symptom <- factor(syn_long_dat_long$Symptom, levels = symptoms)
 
-    # custom color palette
-    cp <- c("#2780E3", "white", "#ff7518")
-    custom_palette <- colorRamp(cp)
+    # Define a custom color palette
+    custom_palette <- c("#2780E3", "#D3E5F9", "white", "#FFE3D0", "#ff7518")
+    custom_palette_gray <- c("white",  "#F5F5F5", "#DCDCDC", "#BEBEBE", "#888888")
+    # Create a color ramp function using the custom palette
+    color_ramp <- colorRamp(custom_palette)
 
     # Function to get an interpolated color at a specific value
     get_interpolated_color <- function(value) {
-        return(rgb(custom_palette(value), maxColorValue = 255))
+        return(rgb(color_ramp(value), maxColorValue = 255))
     }
 
     # get the patient data for the bar chart
@@ -512,8 +528,11 @@ create_time_series_line_plot <- function(){
         if (!is.nan(val) & !is.na(val)){
             ref <- syn_long_dat[syn_long_dat$Week == wk, sym]
             percentile <- ecdf(ref)
-            patient_df[row, 'Percentile'] <- percentile(val)
-            patient_df[row, 'Color'] <- get_interpolated_color(percentile(val))
+            pct <- percentile(val)
+            # fix for scenarios where there every entry is the same
+            if (diff(range(ref, na.rm = TRUE)) == 0 & pct == 1) pct <- 0.5
+            patient_df[row, 'Percentile'] <- pct
+            patient_df[row, 'Color'] <- get_interpolated_color(pct)
         }
     }
 
@@ -566,25 +585,39 @@ create_time_series_line_plot <- function(){
         syn_long_dat_long <- syn_long_dat_long[-ind, ]
     }
 
+    # custom bandwidth for the 2d density, based on the data
+    custom_h <- function(data){
+        min_value <- min(data, na.rm = TRUE)
+        max_value <- max(data, na.rm = TRUE)
+        return(c(8, (max_value - min_value)/4.))
+    }
+    custom_h_values <- list()
+    for (s in symptoms){
+        if (s != "Total") custom_h_values[[length(custom_h_values) + 1]] = custom_h(merged_df[merged_df$Symptom == s, ]$Value)
+    }
+
     main <- ggplot() +
         stat_density_2d(
             data = syn_long_dat_long[(syn_long_dat_long$Symptom != "Total"),],
             aes(x = Week, y = Value, fill = after_stat(ndensity),),
             geom = "raster",
             position = "identity",
-            h = c(8, 25),
+            h = unlist(custom_h_values),
             contour = FALSE,
             show.legend = FALSE
         ) +
-        scale_fill_gradient2(low = "white", high = "darkgray", limits = c(0., 1)) + 
-        new_scale_fill() +
-        geom_line(
-            data = merged_df[(merged_df$Symptom != "Total"),],
-            aes(x = Week, y = Median),
-            color = "darkgray", 
-            # linetype = "dashed", 
-            size = 1.5
+        scale_fill_gradientn(
+            colors = custom_palette_gray,
+            values = seq(0,1,by = 1/length(custom_palette_gray)),
         ) +
+        new_scale_fill() +
+        # geom_line(
+        #     data = merged_df[(merged_df$Symptom != "Total"),],
+        #     aes(x = Week, y = Median),
+        #     color = "darkgray", 
+        #     # linetype = "dashed", 
+        #     size = 1.5
+        # ) +
         geom_line(
             data = merged_df_clean_limit_week[(merged_df_clean_limit_week$Symptom != "Total"),], 
             aes(x = Week, y = Value)
@@ -595,7 +628,8 @@ create_time_series_line_plot <- function(){
             shape = 21, 
             color = "black", 
             size = 4, 
-            stroke = 1.5) + 
+            stroke = 1.5
+        ) + 
         scale_fill_identity() + 
         facet_grid(Symptom ~ ., 
             scales = "free_y", 
@@ -622,25 +656,28 @@ create_time_series_line_plot <- function(){
             axis.title.y.right = element_text(margin = margin(l = 10))
         ) 
 
-
+    h_value <- custom_h(merged_df[merged_df$Symptom == "Total", ]$Value)
     total <- ggplot() +
         stat_density_2d(
             data = syn_long_dat_long[(syn_long_dat_long$Symptom == "Total"),],
             aes(x = Week, y = Value, fill = after_stat(ndensity),),
             geom = "raster",
-            h = c(8, 25),
+            h = h_value,
             contour = FALSE,
             show.legend = FALSE
         ) +
-        scale_fill_gradient2(low = "white", high = "darkgray", limits = c(0., 1)) + 
-        new_scale_fill() +
-        geom_line(
-            data = merged_df[(merged_df$Symptom == "Total"),],
-            aes(x = Week, y = Median),
-            color = "darkgray", 
-            # linetype = "dashed", 
-            size = 1.5
+        scale_fill_gradientn(
+            colors = custom_palette_gray,
+            values = seq(0,1,by = 1/length(custom_palette_gray)),
         ) +
+        new_scale_fill() +
+        # geom_line(
+        #     data = merged_df[(merged_df$Symptom == "Total"),],
+        #     aes(x = Week, y = Median),
+        #     color = "darkgray", 
+        #     # linetype = "dashed", 
+        #     size = 1.5
+        # ) +
         geom_line(
             data = merged_df_clean_limit_week[(merged_df_clean_limit_week$Symptom == "Total"),], 
             aes(x = Week, y = Value)
@@ -686,24 +723,21 @@ create_time_series_line_plot <- function(){
     )
 
     # create another plot just for the legend (not sure there's a simpler way to do this!)
-    breaks <- c(-1, 1)
+    breaks <- c(0, 1)
     labels <- c("Below\nreference\npopulation", "Above\nreference\npopulation")
     g_legend <- ggplot() +
         geom_point(
             data = merged_df_clean_limit_week, 
             aes(x = Week, y = Value, fill = Percentile), 
         ) + 
-        scale_fill_gradient2(
-            low = cp[1], 
-            mid = cp[2], 
-            high = cp[3],
-            midpoint = 0, 
-            limits = c(-1, 1),
-            oob = scales::squish,
+        scale_fill_gradientn(
+            colors = custom_palette,
+            values = seq(0,1,by = 1/length(custom_palette)),
+            limits = c(0,1),
             breaks = breaks,
-            labels = labels
-        ) +    
-         guides(
+            labels = labels,
+        ) +
+        guides(
             fill = guide_colorbar(
                 title = "",#Scaled offset from median of reference population",
                 title.position = "bottom",
