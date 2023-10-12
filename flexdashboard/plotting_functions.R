@@ -341,7 +341,7 @@ create_time_series_line_plot <- function(data_all, show_median = TRUE, show_dens
         main <- main + 
             stat_density_2d(
                 data = data_all_long[(data_all_long$Symptom != "Total"),],
-                aes(x = week_event_number, y = Value, fill = after_stat(ndensity),),
+                aes(x = Week, y = Value, fill = after_stat(ndensity),),
                 geom = "raster",
                 position = "identity",
                 h = unlist(custom_h_values),
@@ -420,7 +420,7 @@ create_time_series_line_plot <- function(data_all, show_median = TRUE, show_dens
         total <- total +
             stat_density_2d(
                 data = data_all_long[(data_all_long$Symptom == "Total"),],
-                aes(x = week_event_number, y = Value, fill = after_stat(ndensity),),
+                aes(x = Week, y = Value, fill = after_stat(ndensity),),
                 geom = "raster",
                 h = custom_h_value,
                 contour = FALSE,
