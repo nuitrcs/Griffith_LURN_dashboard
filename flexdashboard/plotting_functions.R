@@ -200,6 +200,7 @@ create_current_week_summary_bar_chart <- function(data_week, symptoms, input_par
             panel.grid.minor = element_blank(),
          ) 
 
+
     # combine the main and total figures and return the final figure to the user
     g <- plot_grid(main, total, 
         labels = c('Symptom', 'Total'), 

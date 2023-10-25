@@ -141,6 +141,7 @@ clean_real_data <- function(real_data, study_arm, patient_week_event_number, spl
 
     return(
         list(
+            "all" = bph,
             "dat" = bph_dat,
             "dat_arm" = bph_dat_arm,
             "dat_arm_week" = bph_dat_arm_week
