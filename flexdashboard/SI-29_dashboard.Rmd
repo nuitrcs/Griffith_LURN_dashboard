@@ -88,7 +88,13 @@ splom_vars <- rev(splom_vars)
 symptoms <- rev(symptoms)
 
 source("data_cleaning.R")
-bph <- clean_real_data(read.csv("../data/EH22021EnhancedClini-LURNSI29Report_DATA_2023-09-08_1340.csv"), params$study_arm, params$patient_week)
+bph <- clean_real_data(
+    read.csv("../data/EH22021EnhancedClini-LURNSI29Report_DATA_2023-09-08_1340.csv"), 
+    params$study_arm, 
+    params$patient_week,
+    splom_vars,
+    symptoms
+)
 
 # save the input parameters (so that I can add patient_row)
 input_params <- list(
@@ -112,18 +118,42 @@ source("table_functions.R")
 Plots
 =====================================   
 
-Row {data-height=800, id="chart1"}
+Row {data-height=1200, id="chart1"}
 -------------------------------------
 
 ### Symptoms Summary for Patient `r params$patient_id` at Week `r params$patient_week`
     
-```{r, fig.width = 10, fig.height = 10}
+```{r, fig.width = 10, fig.height = 14}
 
-bar_chart <- create_current_week_summary_bar_chart(bph$arm_dat_week, show_median = params$show_median, show_density = params$show_density)
-line_plot <- create_time_series_line_plot(bph$arm_dat, show_median = params$show_median, show_density = params$show_density)
+bar_chart <- create_current_week_summary_bar_chart(
+    bph$arm_dat_week, 
+    symptoms, 
+    input_params, 
+    show_median = params$show_median, 
+    show_density = params$show_density
+)
+line_plot <- create_time_series_line_plot(
+    bph$arm_dat, 
+    symptoms, 
+    input_params, 
+    show_median = params$show_median, 
+    show_density = params$show_density
+)
 
-g <- plot_grid(bar_chart, line_plot$plot, ncol = 2, align = "h", rel_widths = c(0.49,0.51), axis = "l")
-p <- plot_grid(g, line_plot$legend, ncol = 1, rel_heights = c(1, 0.2))
+g <- plot_grid(
+    bar_chart, 
+    line_plot$plot, 
+    ncol = 2, 
+    align = "h", 
+    rel_widths = c(0.49,0.51), 
+    axis = "l"
+)
+p <- plot_grid(
+    g, 
+    line_plot$legend, 
+    ncol = 1, 
+    rel_heights = c(1, 0.2)
+)
 
 
 # save the image and then read it back in so that I can annotate it more easily and have consistent sizing!

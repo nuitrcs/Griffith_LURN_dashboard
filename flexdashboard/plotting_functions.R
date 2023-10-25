@@ -1,7 +1,8 @@
-create_current_week_summary_bar_chart <- function(data_week, show_median = TRUE, show_density = TRUE){
+create_current_week_summary_bar_chart <- function(data_week, symptoms, input_params, show_median = TRUE, show_density = TRUE, color_scale = 3.){
     # Produce a horizontal bar chart showing the symptoms for the selected patient on the selected week
     # in relation to the reference population.  If show_median or show_density are TRUE, then the reference 
     # population is also plotted in the figure (either as a median line or a grayscale density distribution).
+    # color_scale determines how many "sigma" until the end of the colormap (larger numbers mean the patient can have large deviations from the median before getting a bold color)
 
     # create a summary for each of the columns for all patients as a comparison
     df <- select(data_week, -c(ID, Week, week_event_number))
@@ -29,33 +30,40 @@ create_current_week_summary_bar_chart <- function(data_week, show_median = TRUE,
         return(rgb(color_ramp(value), maxColorValue = 255))
     }
 
-    # get the patient data for the bar chart
+    # get the patient data for the chart
     p <- select(data_week[input_params$patient_row, ], -c(ID, Week, week_event_number))
     patient_df <- as.data.frame(t(p))
     names(patient_df) <- c('Value')
     patient_df$Symptom <- factor(rownames(patient_df), levels = symptoms)
 
-    # get the percentiles
-    # I wonder if there's a way to get the percentiles without a for loop?
-    patient_df$Percentile <- 0
+    # get the colors
+    # patient_df$Percentile <- 0
     patient_df$Color <- '#D3D3D3'
     for (s in symptoms){
         val <- patient_df[s,]$Value
         med <- summary_df[summary_df$Symptom == s,]$Median
+        q16 <- summary_df[summary_df$Symptom == s,]$Percentile_16
+        q84 <- summary_df[summary_df$Symptom == s,]$Percentile_84
         ref <- df[[s]]
         if (!is.nan(val)  & !is.na(val)){
-            percentile <- ecdf(ref)
-            pct <- percentile(val)
-            # fix for scenarios where every entry is the same
-            if (diff(range(ref, na.rm = TRUE)) == 0 & pct == 1) pct <- 0.5
-            # fix for scenarios where the Median is at the edge of the distribution
-            if (val == med) pct <- 0.5
-            patient_df[s,]$Percentile <- pct
-            patient_df[s,]$Color <- get_interpolated_color(pct)
+            # the precentile that comes from ecdf does not always agree with the quantiles from above
+            # so instead of coloring by the percentile, I will color by the distance from the median
+            # percentile <- ecdf(ref)
+            # pct <- percentile(val)
+            # # fix for scenarios where every entry is the same
+            # if (diff(range(ref, na.rm = TRUE)) == 0 & pct == 1) pct <- 0.5
+            # # fix for scenarios where the Median is at the edge of the distribution
+            # if (val == med) pct <- 0.5
+            # patient_df[s,]$Percentile <- pct
+            ifelse(val <= med, wd <- med - q16, wd <- q84 - med)
+            cval <- ((val - med)/wd)/color_scale + 0.5
+            if (wd == 0) cval <- 0.5
+            cval <- pmin(pmax(cval, 0), 1)
+            patient_df[s,]$Color <- get_interpolated_color(cval)
         }
     }
     summary_df$Value <- patient_df$Value
-    summary_df$Percentile <- patient_df$Percentile
+    # summary_df$Percentile <- patient_df$Percentile
     summary_df$Color <- patient_df$Color
 
     
@@ -207,12 +215,14 @@ create_current_week_summary_bar_chart <- function(data_week, show_median = TRUE,
     return(g)
 }
 
-create_time_series_line_plot <- function(data_all, show_median = TRUE, show_density = TRUE){
+create_time_series_line_plot <- function(data_all, symptoms, input_params, show_median = TRUE, show_density = TRUE, color_scale = 3.){
     # Produce a faceted line chart showing the symptoms for the selected patient up until the selected week
     # in relation to the reference population.  If show_median or show_density are TRUE, then the reference 
     # population is also plotted in the figure (either as a median line or a grayscale density distribution).
+    # color_scale determines how many "sigma" until the end of the colormap (larger numbers mean the patient can have large deviations from the median before getting a bold color)
 
-    # get the median values for the reference population 
+    # there may be a more streamlined way to do this, but I don't know it!
+    # get the median values and quantiles for the reference population 
     median_values <- data_all %>%
         group_by(week_event_number) %>%
         summarize(across(-c(ID, Week), median, na.rm = TRUE))
@@ -220,6 +230,25 @@ create_time_series_line_plot <- function(data_all, show_median = TRUE, show_dens
         pivot_longer(cols = -c(week_event_number),
             names_to = "Symptom",
             values_to = "Median")
+    median_values_t$Symptom <- factor(median_values_t$Symptom, levels = symptoms)
+
+    Q16_values <- data_all %>%
+        group_by(week_event_number) %>%
+        summarize(across(-c(ID, Week), ~ quantile(., 0.16, na.rm = TRUE)))
+    Q16_values_t <- Q16_values %>%
+        pivot_longer(cols = -c(week_event_number),
+            names_to = "Symptom",
+            values_to = "Percentile_16")
+    Q16_values_t$Symptom <- factor(Q16_values_t$Symptom, levels = symptoms)
+
+    Q84_values <- data_all %>%
+        group_by(week_event_number) %>%
+        summarize(across(-c(ID, Week), ~ quantile(., 0.84, na.rm = TRUE)))
+    Q84_values_t <- Q84_values %>%
+        pivot_longer(cols = -c(week_event_number),
+            names_to = "Symptom",
+            values_to = "Percentile_84")
+    Q84_values_t$Symptom <- factor(Q84_values_t$Symptom, levels = symptoms)
 
     # for the reference population
     data_all_long <- na.omit(pivot_longer(data_all, cols = c(symptoms), names_to = "Symptom", values_to = "Value"))
@@ -239,33 +268,12 @@ create_time_series_line_plot <- function(data_all, show_median = TRUE, show_dens
         return(rgb(color_ramp(value), maxColorValue = 255))
     }
 
-    # get the patient data for the bar chart
+    # get the patient data for the chart
     p <- select(data_all[data_all$ID == input_params$patient_id, ], -ID)
     patient_df <- p %>%
         pivot_longer(cols = -c(Week, week_event_number),
             names_to = "Symptom",
             values_to = "Value")
-
-    # I wonder if there's a way to get the percentiles without a for loop?
-    patient_df$Percentile <- 0
-    patient_df$Color <- '#D3D3D3'
-    for (row in 1:nrow(patient_df)) {
-        val <- patient_df[row, "Value"][[1]]
-        sym <- patient_df[row, "Symptom"][[1]]
-        wk <- patient_df[row, "week_event_number"][[1]]
-        med <- median_values[median_values$week_event_number == wk, ][[sym]]
-        if (!is.nan(val) & !is.na(val)){
-            ref <- data_all[data_all$week_event_number == wk, sym]
-            percentile <- ecdf(ref)
-            pct <- percentile(val)
-            # fix for scenarios where every entry is the same
-            if (diff(range(ref, na.rm = TRUE)) == 0 & pct == 1) pct <- 0.5
-            # fix for scenarios where the Median is at the edge of the distribution
-            if (val == med) pct <- 0.5
-            patient_df[row, 'Percentile'] <- pct
-            patient_df[row, 'Color'] <- get_interpolated_color(pct)
-        }
-    }
 
     # set the symptoms as a factor and in the correct order
     patient_df$Symptom <- factor(patient_df$Symptom, levels = symptoms)
@@ -274,11 +282,43 @@ create_time_series_line_plot <- function(data_all, show_median = TRUE, show_dens
         arrange(srt) %>%
         select(-srt)
 
-    
     # add the patient info to the merged_df
-    merged_df <- merge(median_values_t, patient_df, by = c("week_event_number", "Symptom")) 
+    merged_df <- merge(median_values_t, patient_df, by = c("week_event_number", "Symptom")) %>%
+        merge(Q16_values_t, by = c("week_event_number", "Symptom")) %>%
+        merge(Q84_values_t, by = c("week_event_number", "Symptom"))
     merged_df$Symptom <- factor(merged_df$Symptom, levels = symptoms)
-    median_values_t$Symptom <- factor(median_values_t$Symptom, levels = symptoms)
+
+
+
+    # get the colors
+    # patient_df$Percentile <- 0
+    merged_df$Color <- '#D3D3D3'
+    for (row in 1:nrow(merged_df)) {
+        val <- merged_df[row, "Value"][[1]]
+        sym <- merged_df[row, "Symptom"][[1]]
+        wk <- merged_df[row, "week_event_number"][[1]]
+        med <- merged_df[row, "Median"][[1]]
+        q16 <- merged_df[row, "Percentile_16"][[1]]
+        q84 <- merged_df[row, "Percentile_84"][[1]]
+        if (!is.nan(val) & !is.na(val)){
+            # the precentile that comes from ecdf does not always agree with the quantiles from above
+            # so instead of coloring by the percentile, I will color by the distance from the median
+            # ref <- data_all[data_all$week_event_number == wk, sym]
+            # percentile <- ecdf(ref)
+            # pct <- percentile(val)
+            # # fix for scenarios where every entry is the same
+            # if (diff(range(ref, na.rm = TRUE)) == 0 & pct == 1) pct <- 0.5
+            # # fix for scenarios where the Median is at the edge of the distribution
+            # if (val == med) pct <- 0.5
+            # patient_df[row, 'Percentile'] <- pct
+            # patient_df[row, 'Color'] <- get_interpolated_color(pct)
+            ifelse(val <= med, wd <- med - q16, wd <- q84 - med)
+            cval <- ((val - med)/wd)/color_scale + 0.5
+            if (wd == 0) cval <- 0.5
+            cval <- pmin(pmax(cval, 0), 1)
+            merged_df[row, 'Color'] <- get_interpolated_color(cval)
+        }
+    }
 
     # omit the rows with nan values??
     merged_df_clean_limit_week <- na.omit(merged_df[merged_df$week_event_number <= input_params$patient_week, ])
@@ -499,7 +539,7 @@ create_time_series_line_plot <- function(data_all, show_median = TRUE, show_dens
     g_legend <- ggplot() +
         geom_point(
             data = merged_df_clean_limit_week, 
-            aes(x = Week, y = Value, fill = Percentile), 
+            aes(x = Week, y = Value, fill = Median), 
         ) + 
         scale_fill_gradientn(
             colors = custom_palette,

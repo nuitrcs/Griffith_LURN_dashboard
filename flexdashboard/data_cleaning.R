@@ -1,6 +1,5 @@
 
-clean_real_data <- function(real_data, study_arm, patient_week_event_number){
-    # assumes splom_vars and symptoms are defined outside this function
+clean_real_data <- function(real_data, study_arm, patient_week_event_number, splom_vars, symptoms){
     
     # Some variables need renaming to work with the lurn R package.
     bph <- rename(real_data,

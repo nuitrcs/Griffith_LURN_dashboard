@@ -5,7 +5,7 @@ This directory contains the dashboard code: `SI-29_dashboard.Rmd`.  To compile t
 ```
 $ conda activate r4-griffith-wsl
 $ Rscript -e "rmarkdown::render('SI-29_dashboard.Rmd', params = list(patient_id = 100, patient_week = 0))"
-$ Rscript -e "webshot::rmdshot(doc = 'SI-29_dashboard.Rmd', rmd_args = list(params = list(patient_id = 100, patient_week = 0)), file = 'SI-29_plots.png', vwidth = 1275, vheight = 1650)"
+$ Rscript -e "webshot::rmdshot(doc = 'SI-29_dashboard.Rmd', rmd_args = list(params = list(patient_id = 100, patient_week = 0)), file = 'SI-29_plots.png', vwidth = 1000, vheight = 800)"
 $ Rscript -e "webshot::rmdshot(doc = 'SI-29_dashboard.Rmd', rmd_args = list(params = list(patient_id = 100, patient_week = 0, show_table = TRUE)), file = 'SI-29_tables.png', vwidth = 1275, vheight = 2000, delay = 1)"
 ```
 - The first line activates my `conda` environment, which contains all the libraries listed in the `README.md` file in the root directory.  (If you haven't created a conda environment, you don't need to execute that line).  
