@@ -103,7 +103,7 @@ input_params <- list(
     study_arm = params$study_arm,
     show_density = params$show_density,
     show_median = params$show_median,
-    patient_row = which(bph$arm_dat_week$ID == params$patient_id)[1]
+    patient_row = which(bph$dat_arm_week$ID == params$patient_id)[1]
 )
 
 source("plotting_functions.R")
@@ -126,14 +126,14 @@ Row {data-height=1200, id="chart1"}
 ```{r, fig.width = 10, fig.height = 14}
 
 bar_chart <- create_current_week_summary_bar_chart(
-    bph$arm_dat_week, 
+    bph$dat_arm_week, 
     symptoms, 
     input_params, 
     show_median = params$show_median, 
     show_density = params$show_density
 )
 line_plot <- create_time_series_line_plot(
-    bph$arm_dat, 
+    bph$dat_arm, 
     symptoms, 
     input_params, 
     show_median = params$show_median, 

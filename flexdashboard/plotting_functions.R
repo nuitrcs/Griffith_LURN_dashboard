@@ -5,7 +5,7 @@ create_current_week_summary_bar_chart <- function(data_week, symptoms, input_par
     # color_scale determines how many "sigma" until the end of the colormap (larger numbers mean the patient can have large deviations from the median before getting a bold color)
 
     # create a summary for each of the columns for all patients as a comparison
-    df <- select(data_week, -c(ID, Week, week_event_number))
+    df <- select(data_week, -c(ID, arm, Week, week_event_number))
     summary_df <- data.frame(
         Median = apply(df, 2, function(x) quantile(x, probs = 0.5, na.rm = TRUE, type = 1)),
         Percentile_16 = apply(df, 2, function(x) quantile(x, probs = 0.16, na.rm = TRUE, type = 1)),
@@ -31,7 +31,7 @@ create_current_week_summary_bar_chart <- function(data_week, symptoms, input_par
     }
 
     # get the patient data for the chart
-    p <- select(data_week[input_params$patient_row, ], -c(ID, Week, week_event_number))
+    p <- select(data_week[input_params$patient_row, ], -c(ID, arm, Week, week_event_number))
     patient_df <- as.data.frame(t(p))
     names(patient_df) <- c('Value')
     patient_df$Symptom <- factor(rownames(patient_df), levels = symptoms)
@@ -225,7 +225,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, show_
     # get the median values and quantiles for the reference population 
     median_values <- data_all %>%
         group_by(week_event_number) %>%
-        summarize(across(-c(ID, Week), median, na.rm = TRUE))
+        summarize(across(-c(ID, arm, Week), median, na.rm = TRUE))
     median_values_t <- median_values %>%
         pivot_longer(cols = -c(week_event_number),
             names_to = "Symptom",
@@ -234,7 +234,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, show_
 
     Q16_values <- data_all %>%
         group_by(week_event_number) %>%
-        summarize(across(-c(ID, Week), ~ quantile(., 0.16, na.rm = TRUE)))
+        summarize(across(-c(ID, arm, Week), ~ quantile(., 0.16, na.rm = TRUE)))
     Q16_values_t <- Q16_values %>%
         pivot_longer(cols = -c(week_event_number),
             names_to = "Symptom",
@@ -243,7 +243,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, show_
 
     Q84_values <- data_all %>%
         group_by(week_event_number) %>%
-        summarize(across(-c(ID, Week), ~ quantile(., 0.84, na.rm = TRUE)))
+        summarize(across(-c(ID, arm, Week), ~ quantile(., 0.84, na.rm = TRUE)))
     Q84_values_t <- Q84_values %>%
         pivot_longer(cols = -c(week_event_number),
             names_to = "Symptom",
@@ -271,7 +271,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, show_
     # get the patient data for the chart
     p <- select(data_all[data_all$ID == input_params$patient_id, ], -ID)
     patient_df <- p %>%
-        pivot_longer(cols = -c(Week, week_event_number),
+        pivot_longer(cols = -c(Week, arm, week_event_number),
             names_to = "Symptom",
             values_to = "Value")
 
