@@ -97,10 +97,10 @@ create_full_table <- function(data_week, input_params, color_scale = 3.){
         tab_header(title = md(
             "**Figure 1: LURN SI-29: Percentages of response values**"),
             subtitle = 
-            "Synthetic data: Darker gray corresponds to higher percentages") %>%
+            "Darker gray corresponds to higher percentages") %>%
         tab_footnote(footnote = 
-            "For items SI29_Q19, SI29_Q21, SI29_Q23, SI29_Q24, and SI29_Q28, blank cells are not possible response values") %>%
-        tab_source_note(source_note = paste0("Data are synthetic for testing and simulation purposes. N = ",  length(data_week$ID))) %>%
+            "For items SI29_Q19, SI29_Q21, SI29_Q23, SI29_Q24, and SI29_Q28, blank cells are not possible response values.") %>%
+        tab_source_note(source_note = paste0("N = ",  length(data_week$study_id))) %>%
         opt_table_font(font = "Helvetica") %>%
         tab_row_group(label = md("**Section F: Additional symptoms and bother**"),
                         rows = c("SI29_Q21", "SI29_Q22", "SI29_Q23", "SI29_Q24",
