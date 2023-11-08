@@ -1,3 +1,18 @@
+# created to allow more distance between the intense colors at end and white 
+# used: https://meyerweb.com/eric/tools/color-blend/
+# used the end color and white, set midpoints = 3 and took the step before white
+custom_palette <- c("#2780E3", "#C9DFF8", "white", "#FFDDC5", "#ff7518") 
+
+# used for the density plots
+custom_palette_gray <- c("white",  "#F5F5F5", "#DCDCDC", "#BEBEBE", "#888888")
+
+
+get_interpolated_color <- function(value, cp = custom_palette) {
+    # Create a color ramp function using the custom palette
+    color_ramp <- colorRamp(cp)
+    return(rgb(color_ramp(value), maxColorValue = 255))
+}
+
 create_current_week_summary_bar_chart <- function(data_week, symptoms, input_params, show_median = TRUE, show_density = TRUE, color_scale = 3.){
     # Produce a horizontal bar chart showing the symptoms for the selected patient on the selected week
     # in relation to the reference population.  If show_median or show_density are TRUE, then the reference 
@@ -17,18 +32,6 @@ create_current_week_summary_bar_chart <- function(data_week, symptoms, input_par
     # create a dataframe for the reference population
     df_long <- pivot_longer(df, cols = symptoms, names_to = "Symptom", values_to = "Value")
     df_long$Symptom <- factor(df_long$Symptom, levels = symptoms)
-
-    # Define a custom color palette
-    # custom_palette <- c("#2780E3", "white", "#ff7518")
-    custom_palette <- c("#2780E3", "#D3E5F9", "white", "#FFE3D0", "#ff7518")
-    custom_palette_gray <- c("white",  "#F5F5F5", "#DCDCDC", "#BEBEBE", "#888888")
-   # Create a color ramp function using the custom palette
-    color_ramp <- colorRamp(custom_palette)
-
-    # Function to get an interpolated color at a specific value (could probably remove this)
-    get_interpolated_color <- function(value) {
-        return(rgb(color_ramp(value), maxColorValue = 255))
-    }
 
     # get the patient data for the chart
     p <- select(data_week[input_params$patient_row, ], -c(ID, arm, Week, week_event_number))
@@ -79,6 +82,7 @@ create_current_week_summary_bar_chart <- function(data_week, symptoms, input_par
     main <- ggplot() 
 
     if (show_density){
+
         # add the density grayscale for the reference population to the figure
         main <- main + 
             stat_density(
@@ -255,19 +259,6 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, show_
     data_all_long <- na.omit(pivot_longer(data_all, cols = c(symptoms), names_to = "Symptom", values_to = "Value"))
     data_all_long$Symptom <- factor(data_all_long$Symptom, levels = symptoms)
 
-    # Define a custom color palette
-    # custom_palette <- c("#2780E3", "white", "#ff7518")
-    custom_palette <- c("#2780E3", "#D3E5F9", "white", "#FFE3D0", "#ff7518")
-    # custom_palette_gray <- c("white",  "#F5F5F5", "#DCDCDC", "#B0B0B0", "#404040")
-    # custom_palette_gray <- c("white",  "#F5F5F5", "#DCDCDC", "#B0B0B0", "#696969")
-    custom_palette_gray <- c("white",  "#F5F5F5", "#DCDCDC", "#BEBEBE", "#888888")
-    # Create a color ramp function using the custom palette
-    color_ramp <- colorRamp(custom_palette)
-
-    # Function to get an interpolated color at a specific value
-    get_interpolated_color <- function(value) {
-        return(rgb(color_ramp(value), maxColorValue = 255))
-    }
 
     # get the patient data for the chart
     p <- select(data_all[data_all$ID == input_params$patient_id, ], -ID)
@@ -533,51 +524,66 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, show_
         align = "v",
         axis = "b"
     )
+    
+    return(g)
 
-    # create another plot just for the legend (not sure there's a simpler way to do this!)
-    breaks <- c(0, 1)
-    labels <- c("Below\nreference\npopulation", "Above\nreference\npopulation")
+}
+
+create_legend <- function(
+    palette = custom_palette,
+    breaks = c(0, 1),
+    labels = c("Below\nreference\npopulation", "Above\nreference\npopulation"),
+    title = "",
+    fontsize = 12,
+    textcolor = "#555555",
+    ticklinewidth = 0
+){
+    # create a plot just for the legend (not sure there's a simpler way to do this!)
+
+    # create some data to plot (won't show it)
+    df <- data.frame(
+        Week = seq(0, 24, by = 4),
+        Value = seq(0, 1, length.out = 7),
+        Median = seq(0, 1, length.out = 7)    
+    )
+
     g_legend <- ggplot() +
         geom_point(
-            data = merged_df_clean_limit_week, 
+            data = df, 
             aes(x = Week, y = Value, fill = Median), 
         ) + 
         scale_fill_gradientn(
-            colors = custom_palette,
-            values = seq(0,1,by = 1/length(custom_palette)),
+            colors = palette,
+            values = seq(0,1,by = 1/length(palette)),
             limits = c(0,1),
             breaks = breaks,
             labels = labels,
         ) +   
         guides(
             fill = guide_colorbar(
-                title = "",
-                title.position = "bottom",
+                title = title,
+                title.position = "top",
                 title.hjust = 0.5,
                 title.vjust = 0,
-                label.position = "bottom"
+                label.position = "bottom",
+                ticks.colour = 'black', 
+                frame.colour = 'black',
+                ticks.linewidth = ticklinewidth
             )
         ) + 
-        theme_bw() + 
         theme(
             legend.position = "bottom",           
             legend.key.width = unit(1, "cm"),
             legend.title.align = 0.5,
             legend.margin = margin(margin(10,0,0,0,"cm")),
-            legend.title = element_text(size = 9), 
-            legend.text = element_text(size = 12, color = "#555555")
+            legend.title = element_text(size = 1.2*fontsize, color = textcolor), 
+            legend.text = element_text(size = fontsize, color = textcolor),
         )   
 
     # grab only the legend to return to the user
     legend <- cowplot::get_legend(g_legend)
-    
 
-    return(
-        list(
-            "plot" = g,
-            "legend" = legend
-        )
-    )
+    return(legend)
 }
 
 annotate_img <- function(img, acolor){

@@ -66,6 +66,7 @@ library(magick)
 library(ggnewscale)
 library(stringr)
 library(lubridate)
+library(webshot)
 
 # for renaming columns
 splom_vars <- c(
@@ -139,10 +140,11 @@ line_plot <- create_time_series_line_plot(
     show_median = params$show_median, 
     show_density = params$show_density
 )
+legend <- create_legend()
 
 g <- plot_grid(
     bar_chart, 
-    line_plot$plot, 
+    line_plot, 
     ncol = 2, 
     align = "h", 
     rel_widths = c(0.49,0.51), 
@@ -150,7 +152,7 @@ g <- plot_grid(
 )
 p <- plot_grid(
     g, 
-    line_plot$legend, 
+    legend, 
     ncol = 1, 
     rel_heights = c(1, 0.2)
 )
@@ -191,11 +193,9 @@ Row {data-width=1050}
 ### Patient Scores Compared to Aggregate for Patient `r params$patient_id` at Week `r params$patient_week` {class="scrollable-table"}
 
 ```{r}
-# tbl <- create_full_table()
-# tbl$table
-# tbl$comparison_legend
-# tbl$patient_legend
+create_full_table(bph$all_arm_week, input_params)
 ```
+
 
 <!-- used to click on the Tables panel so that I can render it -->
 ```{r results='asis'}

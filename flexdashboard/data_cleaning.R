@@ -127,6 +127,8 @@ clean_real_data <- function(real_data, study_arm, patient_week_event_number, spl
 
     # The scoring is accomplished using the lurn package.
     bph <- score_lurn_si_29(bph)
+    bph_arm <- bph[bph$arm == study_arm, ]
+    bph_arm_week <- bph_arm[bph_arm$week_event_number == patient_week_event_number, ]
 
     bph_dat <- bph[c("study_id", "arm", "weeks_since_procedure", "week_event_number", splom_vars)]
     names(bph_dat)<- append(c("ID", "arm", "Week", "week_event_number"), symptoms)
@@ -142,6 +144,8 @@ clean_real_data <- function(real_data, study_arm, patient_week_event_number, spl
     return(
         list(
             "all" = bph,
+            "all_arm" = bph_arm,
+            "all_arm_week" = bph_arm_week,
             "dat" = bph_dat,
             "dat_arm" = bph_dat_arm,
             "dat_arm_week" = bph_dat_arm_week

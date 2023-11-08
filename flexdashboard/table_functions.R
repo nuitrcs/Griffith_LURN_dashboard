@@ -1,4 +1,12 @@
-create_full_table <- function(){
+# created to allow more distance between the intense colors at end and black 
+# used: https://meyerweb.com/eric/tools/color-blend/
+# used the end color and black, set midpoints = 3 and took the step before black
+# (same method as un plotting_functions.R but with black in the middle)
+custom_palette_t <- c("#2780E3", "#0A2039", "black", "#401D06", "#ff7518") 
+custom_palette_gray_t <- c("white", "#404040") 
+
+
+create_full_table <- function(data_week, input_params, color_scale = 3.){
     # Code mostly from Jamie Griffith
 
    # the questions
@@ -39,10 +47,10 @@ create_full_table <- function(){
     si_29_m_nms <- lurn_si_29_names("male")
 
     # create a table for this particular patient
-    this_patient_row <- syn_week[input_params$patient_row, si_29_m_nms]
+    this_patient_row <- data_week[input_params$patient_row, si_29_m_nms]
 
     # calculate the frequencies
-    si29_prelim_freq_table <- t(apply(syn_week[si_29_m_nms], 2,
+    si29_prelim_freq_table <- t(apply(data_week[si_29_m_nms], 2,
         function(x) table(factor(x, levels = 0:4), useNA = "always")))
 
     si29_prelim_prop_table <- prop.table(si29_prelim_freq_table, margin = 1)
@@ -63,7 +71,7 @@ create_full_table <- function(){
         data_color(
             columns = c("0", "1", "2", "3", "4", "Missing"),
             method = "numeric",
-            palette = c("Greys"),
+            palette = custom_palette_gray_t,
             domain = c(0, 1)) %>%
         fmt_number(
             columns = c("0", "1", "2", "3", "4", "Missing"),
@@ -92,7 +100,7 @@ create_full_table <- function(){
             "Synthetic data: Darker gray corresponds to higher percentages") %>%
         tab_footnote(footnote = 
             "For items SI29_Q19, SI29_Q21, SI29_Q23, SI29_Q24, and SI29_Q28, blank cells are not possible response values") %>%
-        tab_source_note(source_note = paste0("Data are synthetic for testing and simulation purposes. N = ",  length(syn_week$ID))) %>%
+        tab_source_note(source_note = paste0("Data are synthetic for testing and simulation purposes. N = ",  length(data_week$ID))) %>%
         opt_table_font(font = "Helvetica") %>%
         tab_row_group(label = md("**Section F: Additional symptoms and bother**"),
                         rows = c("SI29_Q21", "SI29_Q22", "SI29_Q23", "SI29_Q24",
@@ -115,28 +123,22 @@ create_full_table <- function(){
 
     # highlight the responses from the patient
 
-    # Define a custom color palette
-    custom_palette <- c("#2780E3", "black", "#ff7518")
-    # Create a color ramp function using the custom palette
-    color_ramp <- colorRampPalette(custom_palette)
 
     # iterate through the questions
     for (cc in si_29_m_nms){
-        patient_value <- this_patient_row[, cc]
-        if (!is.nan(patient_value) & !is.na(patient_value)){
-            median_value <- median(syn_week[, cc], na.rm = TRUE)
-            Percentile_16 = quantile(syn_week[, cc], probs = 0.16, na.rm = TRUE)
-            Percentile_84 = quantile(syn_week[, cc], probs = 0.84, na.rm = TRUE)
-            width <- Percentile_84 - Percentile_16
-            # what should I do with width == 0 ??!!
-            if (width == 0) width <- 1.
+        val <- this_patient_row[, cc]
+        if (!is.nan(val) & !is.na(val)){
+            med <- median(data_week[, cc], na.rm = TRUE)
+            q16 = quantile(data_week[, cc], probs = 0.16, na.rm = TRUE)
+            q84 = quantile(data_week[, cc], probs = 0.84, na.rm = TRUE)
 
-            # Calculate the color value based on (patient_value - median_value) / width
-            color_value <- (patient_value - median_value)/width
-            color_value <- pmin(pmax(color_value, -1), 1)
+            ifelse(val <= med, wd <- med - q16, wd <- q84 - med)
+            cval <- ((val - med)/wd)/color_scale + 0.5
+            if (wd == 0) cval <- 0.5
+            cval <- pmin(pmax(cval, 0), 1)
+            # get_interpolated_color is defined in plotting_functions.R
+            color <- get_interpolated_color(cval, custom_palette_t)
 
-            # Map color value to the custom palette
-            color <- color_ramp(100)[findInterval(color_value, seq(-1, 1, length.out = 100))]
             si29_item_table <- si29_item_table %>%
                 tab_style(
                     style = list(
@@ -148,43 +150,61 @@ create_full_table <- function(){
                     ),
                     locations = list(
                         cells_body(
-                            columns = paste(patient_value),
+                            columns = paste(val),
                             rows = cc
                         )
                     )
                 )
         }
     }
+ 
+    # save this table as an image so that I can add the legend (is there an easier way!?)
+    tmp_html <- tempfile("tbl0", fileext = ".html")
+    tmp_png <- tempfile("img0", fileext = ".png")
+    foo <- as_raw_html(si29_item_table, inline_css = TRUE)
+    fileConn <- file(tmp_html)
+    writeLines(foo, fileConn)
+    close(fileConn)
+    webshot(tmp_html, file = tmp_png)
+    tbl_img <- image_trim(image_read(tmp_png))
+    tbl_info <- image_info(tbl_img)
 
-    # create the legend for the reference population
-    legend_dat <- data.frame(t(seq(0, 1, .2)))
-    names(legend_dat) <- paste0(seq(0, 100, 20), "%")
-    legend <- gt(legend_dat) %>%
-        data_color(method = "numeric",
-            palette = c("Greys"),
-            domain = c(0, 1)) %>%
-        fmt_number(pattern = "") %>%
-        tab_header(title = "Population Values Legend") %>%
-        opt_table_font(font = "Helvetica")
-
-    # create the legend for the patient
-    legend_patient_dat <- data.frame(t(seq(-1, 1, .25)))
-    names(legend_patient_dat) <- seq(-1, 1, 0.25)
-    legend_patient <- gt(legend_patient_dat) %>%
-        data_color(method = "numeric",
-            palette = custom_palette,
-            domain = c(-1, 1)) %>%
-        fmt_number(pattern = "") %>%
-        tab_header(title = "Patient Values Legend: (patient_value - median)/width") %>%
-        opt_table_font(font = "Helvetica")
-
-
-    return(
-        list(
-            "table" = si29_item_table,
-            "comparison_legend" = legend,
-            "patient_legend" = legend_patient
-        )
+    # same for the legends
+    # create_legend is in plotting_functions.R
+    comparison_legend <- create_legend(
+        custom_palette_gray_t,
+        seq(0, 1, .2),
+        str_pad(paste0(seq(0, 100, 20), "%"), width = 4, side = "right", pad = " "),
+        "Population Values Legend",
+        6,
+        "#555555", 
+        0.2
     )
+    ggsave(tmp_png, comparison_legend)
+    clgnd_img <- image_scale(image_trim(image_read(tmp_png)), tbl_info$width*0.5)
+    clgnd_info <- image_info(clgnd_img)
 
+    # moving the labels in so that I can get the same size!
+    patient_legend <- create_legend(
+        custom_palette_t,
+        breaks = c(0, 0.05, 0.95, 1),
+        labels = c("", "Below\nreference\npopulation", "Above\nreference\npopulation",""),
+        "Patient Values Legend",
+        6,
+
+    )
+    ggsave(tmp_png, patient_legend)
+    plgnd_img <- image_scale(image_trim(image_read(tmp_png)), tbl_info$width*0.5) 
+    plgnd_info <- image_info(plgnd_img)
+
+    # combine into one single image
+    p <- image_blank(tbl_info$width, tbl_info$height + clgnd_info$height + 40, color = 'white') %>%
+        image_composite(tbl_img) %>%
+        image_composite(clgnd_img, gravity = "South")
+
+    pp <- image_blank(tbl_info$width, tbl_info$height + clgnd_info$height + plgnd_info$height + 100, color = 'white') %>%
+        image_composite(p) %>%
+        image_composite(plgnd_img, gravity = "South")
+
+    return(pp)
 }

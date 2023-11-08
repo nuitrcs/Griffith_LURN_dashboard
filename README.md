@@ -15,6 +15,7 @@ magick
 ggnewscale
 stringr
 lubridate
+webshot
 ```
 
 The code also requires the `lurn` package developed by Prof. Griffith, which can be found here: [https://github.com/jameswgriffith/lurn](https://github.com/jameswgriffith/lurn).
