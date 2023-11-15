@@ -75,8 +75,7 @@ create_current_week_summary_bar_chart <- function(data_week, symptoms, input_par
     labels <- c("0\n", "20", "40", "60", "80", "100")
 
     # get the maximum value to define the axis limits
-    # max_value <- max(unlist(patient_df[sapply(patient_df, is.numeric)]), na.rm = TRUE)
-    max_value <- 100
+    max_value <- ifelse(input_params$autoscale_symptoms_axis, max(unlist(patient_df[sapply(patient_df, is.numeric)]), na.rm = TRUE), 100)
 
     # create the main plot (excluding the "Total" value)
     main <- ggplot() 
@@ -320,34 +319,25 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, show_
     labels <- c("-4","0\n(baseline)", "4", "8", "12", "16", "20", "24")
     labels2 <- c("-4","0", "4", "8", "12", "16", "20", "24")
 
-    # function to calculate custom breaks
-    custom_breaks <- function(data, n_breaks = 4, tol = 0.5) {
-        # Calculate better breaks based on data range
-        x <- min(data, na.rm = TRUE)
-        min_value <- ifelse(is.finite(x), x, 0)
-        x <- max(data, na.rm = TRUE)
-        max_value <- ifelse(is.finite(x), x, 100)
-        breaks <- pretty(c(min_value, max_value), n = n_breaks)
-        diff <- breaks[2] - breaks[1]
-        top_diff <- max_value - breaks[length(breaks)]
-        if (abs(top_diff/diff) > tol) {
-            breaks <- breaks[1:(length(breaks) - 1)]
-            if (top_diff < 0){
-                breaks <- breaks[1:(length(breaks) - 1)]
-            }
-        }
-        return(breaks)
-    }
+
 
 
     # Calculate min and max values for each facet so that I can limit the syn_long_dat_long dataframe 
     # (and therefore the facet's y axis)
-    limits <- merged_df_clean_limit_week %>%
-        group_by(Symptom) %>%
-        # this way the y axis scaling is fixed by the patient data and not the reference population
-        # summarize(min_y = min(Value, na.rm = TRUE), max_y = max(Value, na.rm = TRUE))
-        # this way, the y axis also takes into account the reference median value (so ensure that is shown)
-        summarize(min_y = min(c(Value, Median), na.rm = TRUE), max_y = max(c(Value, Median), na.rm = TRUE))
+    if (input_params$autoscale_symptoms_axis){
+        limits <- merged_df_clean_limit_week %>%
+            group_by(Symptom) %>%
+            # this way the y axis scaling is fixed by the patient data and not the reference population
+            # summarize(min_y = min(Value, na.rm = TRUE), max_y = max(Value, na.rm = TRUE))
+            # this way, the y axis also takes into account the reference median value (so ensure that is shown)
+            summarize(min_y = min(c(Value, Median), na.rm = TRUE), max_y = max(c(Value, Median), na.rm = TRUE))
+    } else {
+        limits <- data.frame(
+            Symptoms = symptoms,
+            min_y = rep(0, length(symptoms)),
+            max_y = rep(100, length(symptoms))
+        )
+    }
 
     for (s in symptoms){
         ind <-  which(data_all_long$Symptom == s & data_all_long$Value > limits[limits$Symptom == s, ]$max_y*1.2)
@@ -420,12 +410,6 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, show_
             switch = "both",
         ) + 
         scale_x_continuous("", breaks = breaks, labels = labels2, limits = c(-1, 24)) + 
-        scale_y_continuous("Symptom level", expand = expansion(mult = c(0.2, 0.2)),
-            breaks = function(x) {
-                return(custom_breaks(x))
-            },
-            position = "right"
-        ) +
         expand_limits(x = c(-1, 26)) + 
         ylab("") + 
         # theme_void() + 
@@ -439,6 +423,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, show_
             panel.grid.minor = element_blank(),
             axis.title.y.right = element_text(margin = margin(l = 10))
         ) 
+
 
     # create the total plot (including only the "Total" value)
     total <- ggplot()
@@ -498,12 +483,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, show_
             switch = "both",
         ) + 
         scale_x_continuous("Weeks since procedure", breaks = breaks, labels = labels, limits = c(-1, 24)) + 
-        scale_y_continuous("", expand = expansion(mult = c(0.2, 0.2)),
-            breaks = function(x) {
-                return(custom_breaks(x))
-            },
-            position = "right"
-        ) +
+
         expand_limits(x = c(-1, 26)) + 
         ylab("") + 
         # theme_void() + 
@@ -516,6 +496,60 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, show_
             panel.grid.minor = element_blank(),
             axis.title.y.right = element_text(margin = margin(l = 10))
         ) 
+
+    if (input_params$autoscale_symptoms_axis){
+        # function to calculate custom breaks
+        custom_breaks <- function(data, n_breaks = 4, tol = 0.5) {
+            # Calculate better breaks based on data range
+            # would be nice to be able to use the limits variable below, but I don't know how to send this the symptom
+            x <- min(data, na.rm = TRUE)
+            min_value <- ifelse(is.finite(x), x, 0)
+            x <- max(data, na.rm = TRUE)
+            max_value <- ifelse(is.finite(x), x, 100)
+            breaks <- pretty(c(min_value, max_value), n = n_breaks)
+            diff <- breaks[2] - breaks[1]
+            top_diff <- max_value - breaks[length(breaks)]
+            if (abs(top_diff/diff) > tol) {
+                breaks <- breaks[1:(length(breaks) - 1)]
+                if (top_diff < 0){
+                    breaks <- breaks[1:(length(breaks) - 1)]
+                }
+            }
+            return(breaks)
+        }
+
+        main <- main + scale_y_continuous(
+            "Symptom level", 
+            expand = expansion(mult = c(0.2, 0.2)),
+            breaks = function(x) {
+                return(custom_breaks(x))
+            },
+            position = "right",
+        )
+        total <- total + scale_y_continuous(
+            "Symptom level", 
+            expand = expansion(mult = c(0.2, 0.2)),
+            breaks = function(x) {
+                return(custom_breaks(x))
+            },
+            position = "right",
+        )
+    } else {
+        main <- main + scale_y_continuous(
+            "Symptom level", 
+            expand = expansion(mult = c(0.15, 0.15)), 
+            breaks = c(0, 25, 50, 75, 100),
+            limits = c(0, 100),
+            position = "right"
+        )
+        total <- total + scale_y_continuous(
+            "Symptom level", 
+            expand = expansion(mult = c(0.15, 0.15)), 
+            breaks = c(0, 25, 50, 75, 100),
+            limits = c(0, 100),
+            position = "right"
+        )
+    }
 
     # combine the main and total panels into one figure and return this to the use
     g <- plot_grid(main, total, 

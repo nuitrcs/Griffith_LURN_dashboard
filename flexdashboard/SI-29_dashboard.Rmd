@@ -1,13 +1,14 @@
 ---
 title: "LURN SI-29 synthetic data dashboard"
 params:
-    patient_id: 3
+    patient_id: 1
     patient_week: 0
     study_arm: "arm_1"
     show_density: FALSE
     show_median: TRUE
     show_table: FALSE
     annotate_plot: FALSE
+    autoscale_symptoms_axis: FALSE
 output: 
     flexdashboard::flex_dashboard:
         orientation: rows
@@ -104,7 +105,8 @@ input_params <- list(
     study_arm = params$study_arm,
     show_density = params$show_density,
     show_median = params$show_median,
-    patient_row = which(bph$dat_arm_week$ID == params$patient_id)[1]
+    patient_row = which(bph$dat_arm_week$ID == params$patient_id)[1],
+    autoscale_symptoms_axis = params$autoscale_symptoms_axis
 )
 
 source("plotting_functions.R")
