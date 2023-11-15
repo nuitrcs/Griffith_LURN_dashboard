@@ -4,6 +4,7 @@ params:
     patient_id: 1
     patient_week: NULL
     study_arm: NULL
+    reference_population : "study_arm"
     show_density: FALSE
     show_median: TRUE
     show_table: FALSE
@@ -103,15 +104,15 @@ bph <- clean_real_data(
     symptoms
 )
 
-# save the input parameters (so that I can add patient_row)
+# save the input parameters (so that I can defaults from data_cleaning)
 input_params <- list(
     patient_id = params$patient_id, 
     patient_week = bph$patient_week, 
     study_arm = bph$study_arm,
     show_density = params$show_density,
     show_median = params$show_median,
-    patient_row = which(bph$dat_arm_week$ID == params$patient_id)[1],
     autoscale_symptoms_axis = params$autoscale_symptoms_axis,
+    reference_population = params$reference_population,
     show_median = params$show_median, 
     show_density = params$show_density,
     annotate_plot = params$annotate_plot
@@ -136,7 +137,7 @@ Row {data-height=1200, id="chart1"}
 ```{r, fig.width = 10, fig.height = 14}
 
 bar_chart <- create_current_week_summary_bar_chart(
-    bph$dat_arm_week, 
+    bph$dat_arm, 
     symptoms, 
     input_params
 )
@@ -198,7 +199,7 @@ Row {data-width=1050}
 ### Patient Scores Compared to Aggregate for Patient `r input_params$patient_id` at Week `r input_params$patient_week` {class="scrollable-table"}
 
 ```{r}
-create_full_table(bph$all_arm_week, input_params)
+create_full_table(bph$all_arm, input_params)
 ```
 
 

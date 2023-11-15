@@ -6,10 +6,13 @@ custom_palette_t <- c("#2780E3", "#0A2039", "black", "#401D06", "#ff7518")
 custom_palette_gray_t <- c("white", "#404040") 
 
 
-create_full_table <- function(data_week, input_params, color_scale = 3.){
+create_full_table <- function(data_all, input_params, color_scale = 3.){
+
+    data_week <- data_all[data_all$week_event_number == input_params$patient_week, ]
+
     # Code mostly from Jamie Griffith
 
-   # the questions
+    # the questions
     q_vec <- c("Loss of bladder Control",
         "Urine leakage",
         "Urine leakage from laughing, coughing, etc.",
@@ -47,7 +50,7 @@ create_full_table <- function(data_week, input_params, color_scale = 3.){
     si_29_m_nms <- lurn_si_29_names("male")
 
     # create a table for this particular patient
-    this_patient_row <- data_week[input_params$patient_row, si_29_m_nms]
+    this_patient_row <- data_week[data_week$study_id == input_params$patient_id, si_29_m_nms]
 
     # calculate the frequencies
     si29_prelim_freq_table <- t(apply(data_week[si_29_m_nms], 2,

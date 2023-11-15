@@ -13,7 +13,7 @@ get_interpolated_color <- function(value, cp = custom_palette) {
     return(rgb(color_ramp(value), maxColorValue = 255))
 }
 
-create_current_week_summary_bar_chart <- function(data_week, symptoms, input_params, color_scale = 3.){
+create_current_week_summary_bar_chart <- function(data_all, symptoms, input_params, color_scale = 3.){
     # Produce a horizontal bar chart showing the symptoms for the selected patient on the selected week
     # in relation to the reference population.  If input_params$show_median or input_params$show_density are TRUE,
     # then the reference population is also plotted in the figure (either as a median line or a grayscale density 
@@ -21,6 +21,7 @@ create_current_week_summary_bar_chart <- function(data_week, symptoms, input_par
     # the patient can have large deviations from the median before getting a bold color)
 
     # create a summary for each of the columns for all patients as a comparison
+    data_week <- data_all[data_all$week_event_number == input_params$patient_week, ]
     df <- select(data_week, -c(ID, arm, Week, week_event_number))
     summary_df <- data.frame(
         Median = apply(df, 2, function(x) quantile(x, probs = 0.5, na.rm = TRUE, type = 1)),
@@ -34,11 +35,25 @@ create_current_week_summary_bar_chart <- function(data_week, symptoms, input_par
     df_long <- pivot_longer(df, cols = symptoms, names_to = "Symptom", values_to = "Value")
     df_long$Symptom <- factor(df_long$Symptom, levels = symptoms)
 
+
+
     # get the patient data for the chart
-    p <- select(data_week[input_params$patient_row, ], -c(ID, arm, Week, week_event_number))
+    p <- select(data_week[data_week$ID == input_params$patient_id, ], -c(ID, arm, Week, week_event_number))
     patient_df <- as.data.frame(t(p))
     names(patient_df) <- c('Value')
     patient_df$Symptom <- factor(rownames(patient_df), levels = symptoms)
+
+    # if baseline is selected for the reference population, replace values in summary_df
+    if (input_params$reference_population == "baseline"){
+        patient_baseline <- data_all[data_all$week_event_number == 0 & data_all$ID == input_params$patient_id, ]
+        patient_baseline_long <- pivot_longer(patient_baseline, cols = symptoms, names_to = "Symptom", values_to = "Baseline")
+        summary_df <- merge(summary_df, patient_baseline_long[,c("Symptom", "Baseline")], by = "Symptom", all.x = TRUE)
+        summary_df$Median <- summary_df$Baseline
+        # what should we do for the percentiles in this case??
+        # I will try using the percentiles from the full population (but what if the baseline is outside?)
+        # summary_df$Percentile_16 <- summary_df$Baseline
+        # summary_df$Percentile_84 <- summary_df$Baseline
+    }
 
     # get the colors
     # patient_df$Percentile <- 0
@@ -66,11 +81,8 @@ create_current_week_summary_bar_chart <- function(data_week, symptoms, input_par
             patient_df[s,]$Color <- get_interpolated_color(cval)
         }
     }
-    summary_df$Value <- patient_df$Value
-    # summary_df$Percentile <- patient_df$Percentile
-    summary_df$Color <- patient_df$Color
+    summary_df <- merge(summary_df, patient_df[,c("Symptom", "Value", "Color")], by = "Symptom", all.x = TRUE)
 
-    
     # for labelling (so that I can match the size of the other plot)
     breaks <- seq(0, 100, 20)
     labels <- c("0\n", "20", "40", "60", "80", "100")
@@ -260,7 +272,6 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
     data_all_long <- na.omit(pivot_longer(data_all, cols = c(symptoms), names_to = "Symptom", values_to = "Value"))
     data_all_long$Symptom <- factor(data_all_long$Symptom, levels = symptoms)
 
-
     # get the patient data for the chart
     p <- select(data_all[data_all$ID == input_params$patient_id, ], -ID)
     patient_df <- p %>%
@@ -281,6 +292,20 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
         merge(Q84_values_t, by = c("week_event_number", "Symptom"))
     merged_df$Symptom <- factor(merged_df$Symptom, levels = symptoms)
 
+
+    # if baseline is selected for the reference population, replace values in merged_df and median_values_t
+    if (input_params$reference_population == "baseline"){
+        patient_baseline <- data_all[data_all$week_event_number == 0 & data_all$ID == input_params$patient_id, ]
+        patient_baseline_long <- pivot_longer(patient_baseline, cols = symptoms, names_to = "Symptom", values_to = "Baseline")
+        median_values_t <- merge(median_values_t, patient_baseline_long[,c("Symptom", "Baseline")], by = "Symptom", all.x = TRUE)
+        median_values_t$Median <- median_values_t$Baseline
+        merged_df <- merge(merged_df, patient_baseline_long[,c("Symptom", "Baseline")], by = "Symptom", all.x = TRUE)
+        merged_df$Median <- merged_df$Baseline
+        # what should we do for the percentiles in this case??
+        # I will try using the percentiles from the full population (but what if the baseline is outside?)
+        # merged_df$Percentile_16 <- merged_df$Baseline
+        # merged_df$Percentile_84 <- merged_df$Baseline
+    }
 
 
     # get the colors
@@ -382,6 +407,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
 
     if (input_params$show_median){
         # add the median gray line for the reference population to the figure
+        # using median_values_t here so that I can keep all the weeks (merged_df is limited to be less than the requested patient week)
         main <- main +
             geom_line(
                 data = median_values_t[(median_values_t$Symptom != "Total"),],
@@ -455,6 +481,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
 
     if (input_params$show_median){
         # add the median gray line for the reference population to the figure
+        # using median_values_t here so that I can keep all the weeks (merged_df is limited to be less than the requested patient week)
         total <- total +    
             geom_line(
                 data = median_values_t[(median_values_t$Symptom == "Total"),],
