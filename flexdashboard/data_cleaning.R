@@ -1,5 +1,5 @@
 
-clean_real_data <- function(real_data, study_arm, patient_week_event_number, splom_vars, symptoms){
+clean_real_data <- function(real_data, patient_id, study_arm, patient_week_event_number, splom_vars, symptoms){
     
     # Some variables need renaming to work with the lurn R package.
     bph <- rename(real_data,
@@ -125,6 +125,16 @@ clean_real_data <- function(real_data, study_arm, patient_week_event_number, spl
         # Ungroup the data
         ungroup()
 
+    # build in default behavior
+    if (is.null(study_arm)) { 
+        # take the first available study arm for this patient
+        study_arm <- bph[bph$study_id == patient_id, ]$arm[1]
+    }
+    if (is.null(patient_week_event_number)) { 
+        # take the most recent visit week
+        patient_week_event_number <- max(bph[bph$study_id == patient_id & bph$arm == study_arm, ]$week_event_number)
+    }
+
     # The scoring is accomplished using the lurn package.
     bph <- score_lurn_si_29(bph)
     bph_arm <- bph[bph$arm == study_arm, ]
@@ -148,7 +158,9 @@ clean_real_data <- function(real_data, study_arm, patient_week_event_number, spl
             "all_arm_week" = bph_arm_week,
             "dat" = bph_dat,
             "dat_arm" = bph_dat_arm,
-            "dat_arm_week" = bph_dat_arm_week
+            "dat_arm_week" = bph_dat_arm_week,
+            "patient_week" = patient_week_event_number,
+            "arm" = study_arm
         )
     )
 }

@@ -13,11 +13,12 @@ get_interpolated_color <- function(value, cp = custom_palette) {
     return(rgb(color_ramp(value), maxColorValue = 255))
 }
 
-create_current_week_summary_bar_chart <- function(data_week, symptoms, input_params, show_median = TRUE, show_density = TRUE, color_scale = 3.){
+create_current_week_summary_bar_chart <- function(data_week, symptoms, input_params, color_scale = 3.){
     # Produce a horizontal bar chart showing the symptoms for the selected patient on the selected week
-    # in relation to the reference population.  If show_median or show_density are TRUE, then the reference 
-    # population is also plotted in the figure (either as a median line or a grayscale density distribution).
-    # color_scale determines how many "sigma" until the end of the colormap (larger numbers mean the patient can have large deviations from the median before getting a bold color)
+    # in relation to the reference population.  If input_params$show_median or input_params$show_density are TRUE,
+    # then the reference population is also plotted in the figure (either as a median line or a grayscale density 
+    # distribution).  color_scale determines how many "sigma" until the end of the colormap (larger numbers mean
+    # the patient can have large deviations from the median before getting a bold color)
 
     # create a summary for each of the columns for all patients as a comparison
     df <- select(data_week, -c(ID, arm, Week, week_event_number))
@@ -80,7 +81,7 @@ create_current_week_summary_bar_chart <- function(data_week, symptoms, input_par
     # create the main plot (excluding the "Total" value)
     main <- ggplot() 
 
-    if (show_density){
+    if (input_params$show_density){
 
         # add the density grayscale for the reference population to the figure
         main <- main + 
@@ -100,7 +101,7 @@ create_current_week_summary_bar_chart <- function(data_week, symptoms, input_par
             new_scale_fill()
     }
 
-    if (show_median){
+    if (input_params$show_median){
         # add the median gray bar for the reference population to the figure
         main <- main +
             geom_errorbar(
@@ -144,7 +145,7 @@ create_current_week_summary_bar_chart <- function(data_week, symptoms, input_par
     # create the total plot (only including the "Total" value)
     total <- ggplot()
 
-    if (show_density){
+    if (input_params$show_density){
         # add the density grayscale for the reference population to the figure
         total <- total +
             stat_density(
@@ -163,7 +164,7 @@ create_current_week_summary_bar_chart <- function(data_week, symptoms, input_par
             new_scale_fill()
     }
 
-    if (show_median){
+    if (input_params$show_median){
         # add the median gray bar for the reference population to the figure
         total <- total +
             geom_errorbar(
@@ -219,11 +220,12 @@ create_current_week_summary_bar_chart <- function(data_week, symptoms, input_par
     return(g)
 }
 
-create_time_series_line_plot <- function(data_all, symptoms, input_params, show_median = TRUE, show_density = TRUE, color_scale = 3.){
+create_time_series_line_plot <- function(data_all, symptoms, input_params, color_scale = 3.){
     # Produce a faceted line chart showing the symptoms for the selected patient up until the selected week
-    # in relation to the reference population.  If show_median or show_density are TRUE, then the reference 
-    # population is also plotted in the figure (either as a median line or a grayscale density distribution).
-    # color_scale determines how many "sigma" until the end of the colormap (larger numbers mean the patient can have large deviations from the median before getting a bold color)
+    # in relation to the reference population.  If input_params$show_median or input_params$show_density are TRUE,
+    # then the reference population is also plotted in the figure (either as a median line or a grayscale density 
+    # distribution).  color_scale determines how many "sigma" until the end of the colormap (larger numbers mean
+    # the patient can have large deviations from the median before getting a bold color)
 
     # there may be a more streamlined way to do this, but I don't know it!
     # get the median values and quantiles for the reference population 
@@ -348,7 +350,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, show_
     # create the main plot (excluding the "Total" value)
     main <- ggplot()
 
-    if (show_density){
+    if (input_params$show_density){
         # add the density grayscale for the reference population to the figure
 
         # I want a way to customize the bandwidth used in the density distributions based on the min,max of the data
@@ -378,7 +380,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, show_
             new_scale_fill()
     }
 
-    if (show_median){
+    if (input_params$show_median){
         # add the median gray line for the reference population to the figure
         main <- main +
             geom_line(
@@ -428,7 +430,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, show_
     # create the total plot (including only the "Total" value)
     total <- ggplot()
 
-    if (show_density){
+    if (input_params$show_density){
         # add the density grayscale for the reference population to the figure
 
         # again, customize the bandwidth
@@ -451,7 +453,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, show_
             new_scale_fill()
     }
 
-    if (show_median){
+    if (input_params$show_median){
         # add the median gray line for the reference population to the figure
         total <- total +    
             geom_line(

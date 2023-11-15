@@ -2,8 +2,8 @@
 title: "LURN SI-29 synthetic data dashboard"
 params:
     patient_id: 1
-    patient_week: 0
-    study_arm: "arm_1"
+    patient_week: NULL
+    study_arm: NULL
     show_density: FALSE
     show_median: TRUE
     show_table: FALSE
@@ -69,6 +69,11 @@ library(stringr)
 library(lubridate)
 library(webshot)
 
+# AMG codes
+source("data_cleaning.R")
+source("plotting_functions.R")
+source("table_functions.R")
+
 # for renaming columns
 splom_vars <- c(
    "lurn_si_29_total_score", 
@@ -89,9 +94,9 @@ symptoms <- c("Total",
 splom_vars <- rev(splom_vars)
 symptoms <- rev(symptoms)
 
-source("data_cleaning.R")
 bph <- clean_real_data(
     read.csv("../data/EH22021EnhancedClini-LURNSI29Report_DATA_2023-09-08_1340.csv"), 
+    params$patient_id,
     params$study_arm, 
     params$patient_week,
     splom_vars,
@@ -101,16 +106,18 @@ bph <- clean_real_data(
 # save the input parameters (so that I can add patient_row)
 input_params <- list(
     patient_id = params$patient_id, 
-    patient_week = params$patient_week, 
-    study_arm = params$study_arm,
+    patient_week = bph$patient_week, 
+    study_arm = bph$study_arm,
     show_density = params$show_density,
     show_median = params$show_median,
     patient_row = which(bph$dat_arm_week$ID == params$patient_id)[1],
-    autoscale_symptoms_axis = params$autoscale_symptoms_axis
+    autoscale_symptoms_axis = params$autoscale_symptoms_axis,
+    show_median = params$show_median, 
+    show_density = params$show_density,
+    annotate_plot = params$annotate_plot
 )
 
-source("plotting_functions.R")
-source("table_functions.R")
+
 
 
 
@@ -124,23 +131,19 @@ Plots
 Row {data-height=1200, id="chart1"}
 -------------------------------------
 
-### Symptoms Summary for Patient `r params$patient_id` at Week `r params$patient_week`
+### Symptoms Summary for Patient `r input_params$patient_id` at Week `r input_params$patient_week`
     
 ```{r, fig.width = 10, fig.height = 14}
 
 bar_chart <- create_current_week_summary_bar_chart(
     bph$dat_arm_week, 
     symptoms, 
-    input_params, 
-    show_median = params$show_median, 
-    show_density = params$show_density
+    input_params
 )
 line_plot <- create_time_series_line_plot(
     bph$dat_arm, 
     symptoms, 
-    input_params, 
-    show_median = params$show_median, 
-    show_density = params$show_density
+    input_params
 )
 legend <- create_legend()
 
@@ -165,7 +168,7 @@ tmp <- tempfile("image0", fileext = ".png")
 ggsave(tmp, p, width = 12, height = 9)
 img <- image_read(tmp)
 
-if (params$annotate_plot) img <- annotate_img(img, "#a200aa")
+if (input_params$annotate_plot) img <- annotate_img(img, "#a200aa")
 
 image_trim(img)
 
@@ -192,7 +195,7 @@ Tables
 Row {data-width=1050}
 -------------------------------------
 
-### Patient Scores Compared to Aggregate for Patient `r params$patient_id` at Week `r params$patient_week` {class="scrollable-table"}
+### Patient Scores Compared to Aggregate for Patient `r input_params$patient_id` at Week `r input_params$patient_week` {class="scrollable-table"}
 
 ```{r}
 create_full_table(bph$all_arm_week, input_params)
