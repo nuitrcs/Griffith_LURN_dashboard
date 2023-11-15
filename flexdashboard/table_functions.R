@@ -188,7 +188,7 @@ create_full_table <- function(data_week, input_params, color_scale = 3.){
     patient_legend <- create_legend(
         custom_palette_t,
         breaks = c(0, 0.05, 0.95, 1),
-        labels = c("", "Below\nreference\npopulation", "Above\nreference\npopulation",""),
+        labels = c("", "Below\nreference\npopulation\n(better)", "Above\nreference\npopulation\n(worse)",""),
         "Patient Values Legend",
         6,
 

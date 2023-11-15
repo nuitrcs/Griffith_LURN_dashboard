@@ -566,7 +566,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, show_
 create_legend <- function(
     palette = custom_palette,
     breaks = c(0, 1),
-    labels = c("Below\nreference\npopulation", "Above\nreference\npopulation"),
+    labels = c("Below\nreference\npopulation\n(better)", "Above\nreference\npopulation\n(worse)"),
     title = "",
     fontsize = 12,
     textcolor = "#555555",
