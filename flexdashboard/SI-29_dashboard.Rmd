@@ -1,5 +1,5 @@
 ---
-title: "LURN SI-29 synthetic data dashboard"
+title: "LURN SI-29 data dashboard"
 params:
     patient_id: 1
     patient_week: NULL
