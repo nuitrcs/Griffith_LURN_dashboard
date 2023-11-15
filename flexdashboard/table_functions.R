@@ -9,6 +9,7 @@ custom_palette_gray_t <- c("white", "#404040")
 create_full_table <- function(data_all, input_params, color_scale = 3.){
 
     data_week <- data_all[data_all$week_event_number == input_params$patient_week, ]
+    data_baseline <- data_all[data_all$week_event_number == 0, ]
 
     # Code mostly from Jamie Griffith
 
@@ -51,6 +52,7 @@ create_full_table <- function(data_all, input_params, color_scale = 3.){
 
     # create a table for this particular patient
     this_patient_row <- data_week[data_week$study_id == input_params$patient_id, si_29_m_nms]
+    this_patient_baseline <- data_baseline[data_baseline$study_id == input_params$patient_id, si_29_m_nms]
 
     # calculate the frequencies
     si29_prelim_freq_table <- t(apply(data_week[si_29_m_nms], 2,
@@ -126,7 +128,6 @@ create_full_table <- function(data_all, input_params, color_scale = 3.){
 
     # highlight the responses from the patient
 
-
     # iterate through the questions
     for (cc in si_29_m_nms){
         val <- this_patient_row[, cc]
@@ -134,6 +135,13 @@ create_full_table <- function(data_all, input_params, color_scale = 3.){
             med <- median(data_week[, cc], na.rm = TRUE)
             q16 = quantile(data_week[, cc], probs = 0.16, na.rm = TRUE)
             q84 = quantile(data_week[, cc], probs = 0.84, na.rm = TRUE)
+
+            # if the reference population is the baseline, use that as "med"
+            if (input_params$reference_population == "baseline"){
+                med <- this_patient_baseline[, cc]
+                # what should we do about the percentiles for the width??
+                # for now I will just use the percentiles from the full population
+            }
 
             ifelse(val <= med, wd <- med - q16, wd <- q84 - med)
             cval <- ((val - med)/wd)/color_scale + 0.5
