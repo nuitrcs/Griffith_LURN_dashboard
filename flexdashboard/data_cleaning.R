@@ -1,4 +1,36 @@
 
+populate_bph_weeks <- function(bph){
+    # calculate a column to store the weeks since procedure for each patient.  
+
+    out <- bph %>%
+        # Group the data by study_id
+        group_by(study_id) %>%
+        
+        # take the first row with a visit after baseline so that I can calculate the time since procedure
+        arrange(week_event_number, desc(!is.na(as.Date(si29_date, format="%Y-%m-%d")))) %>%
+        filter(week_event_number > 0) %>%
+        slice_head(n = 1) %>%
+        select(study_id, reference_date = si29_date, nweeks = week_event_number) %>%
+
+
+        # Join the baseline_date with the original data frame for each study_id
+        right_join(bph, by = "study_id") %>%
+
+        # Calculate the weeks since baseline for each study_id
+        mutate(
+            si29_date = as.POSIXct(si29_date, format = "%Y-%m-%d"), 
+            reference_date = as.POSIXct(reference_date, format = "%Y-%m-%d"), 
+            weeks_since_procedure = as.numeric(difftime(si29_date, (reference_date - weeks(nweeks)), units = "weeks")), 
+            weeks_since_procedure = round(weeks_since_procedure, 2),  # Round to 0.01 (not strictly necessary)
+        ) %>%
+
+        # Ungroup the data
+        ungroup()
+
+    return(out)
+}
+
+
 clean_real_data <- function(real_data, patient_id, study_arm, patient_week_event_number, splom_vars, symptoms){
     
     # Some variables need renaming to work with the lurn R package.
@@ -32,6 +64,9 @@ clean_real_data <- function(real_data, patient_id, study_arm, patient_week_event
         SI29_Q27b = si29_q27b,
         SI29_Q28 = si29_q28
     )
+
+    # only take rows that have dates?
+    bph <- bph %>% filter(!is.na(si29_date) & !is.na(as.Date(si29_date)))
 
     # Recode sex into SEX so that 2 = MALE
     bph$SEX <- case_match(bph$sex, 2 ~ 1, 1 ~ 2)
@@ -67,73 +102,92 @@ clean_real_data <- function(real_data, patient_id, study_arm, patient_week_event
 
     bph$arm <- factor(bph$arm, levels = c("arm_1", "arm_2"))
 
+
+
     # these will need to be updated
+    # I may want to generalize this to just take the initial bit before "_"
     arm1_old_labels <- c(
         "2_weeks_prior_to_b_arm_1",
+        "baseline_visit_arm_1",
+        "baseline_visit_cl_arm_1",
         "baseline_visit_cli_arm_1",
         "4_weeks_posttx_arm_1",
+        "4_weeks_posttx_cl_arm_1",
+        "4_weeks_posttx_cli_arm_1",
         "8_weeks_posttx_arm_1",
+        "8_weeks_posttx_cl_arm_1",
+        "8_weeks_posttx_cli_arm_1",
+        "12_weeks_posttx_arm_1",
         "12_weeks_posttx_cl_arm_1",
+        "12_weeks_posttx_cli_arm_1",
         "16_weeks_posttx_arm_1",
+        "16_weeks_posttx_cl_arm_1",
+        "16_weeks_posttx_cli_arm_1",
         "20_weeks_posttx_arm_1",
-        "24_weeks_posttx_arm_1"
+        "20_weeks_posttx_cl_arm_1",
+        "20_weeks_posttx_cli_arm_1",
+        "24_weeks_posttx_arm_1",
+        "24_weeks_posttx_cl_arm_1",
+        "24_weeks_posttx_cli_arm_1"
     )
-    arm1_new_labels <- c(-2, 0, 4, 8, 12, 16, 20, 24)
+    arm1_new_labels <- c(-2, 0, 0, 0, 4, 4, 4, 8, 8, 8, 12, 12, 12, 16, 16, 16, 20, 20, 20, 24, 24, 24)
     arm2_old_labels <- c(
+        "baseline_visit_arm_2",
+        "baseline_visit_cl_arm_2",
         "baseline_visit_cli_arm_2",
         "preop_arm_2",
+        "surgery_arm_2",
         "1_week_postop_arm_2",
+        "1_week_postop_cl_arm_2",
+        "1_week_postop_cli_arm_2",
         "2_weeks_postop_arm_2",
+        "2_weeks_postop_cl_arm_2",
+        "2_weeks_postop_cli_arm_2",
+        "4_weeks_postop_arm_2",
+        "4_weeks_postop_cl_arm_2",
         "4_weeks_postop_cli_arm_2",
         "6_weeks_postop_arm_2",
+        "6_weeks_postop_cl_arm_2",
+        "6_weeks_postop_cli_arm_2",
         "8_weeks_postop_arm_2",
+        "8_weeks_postop_cl_arm_2",
+        "8_weeks_postop_cli_arm_2",
         "12_weeks_postop_arm_2",
+        "12_weeks_postop_cl_arm_2",
+        "12_weeks_postop_cli_arm_2",
         "16_weeks_postop_arm_2",
+        "16_weeks_postop_cl_arm_2",
+        "16_weeks_postop_cli_arm_2",
         "20_weeks_postop_arm_2",
-        "24_weeks_postop_arm_2"
+        "20_weeks_postop_cl_arm_2",
+        "20_weeks_postop_cli_arm_2",
+        "24_weeks_postop_arm_2",
+        "24_weeks_postop_cl_arm_2",
+        "24_weeks_postop_cli_arm_2"
     )
-    arm2_new_labels <- c(0, -1, 1, 2, 4, 6, 8, 12, 16, 20, 24)
+    arm2_new_labels <- c(0, 0, 0, -2, -1, 1, 1, 1, 2, 2, 2, 4, 4, 4, 6, 6, 6, 8, 8, 8, 12, 12, 12, 16, 16, 16, 20, 20, 20, 24, 24, 24)
     bph <- bph %>%
         mutate(week_event_number = recode(redcap_event_name, !!!setNames(c(arm1_new_labels,arm2_new_labels), c(arm1_old_labels,arm2_old_labels))))
 
 
+    # split this into arm1 vs arm2 (since some patients are in both)
+    # and calculate a column to store the weeks since procdure for each patient. 
+    df1 <- populate_bph_weeks(bph[bph$arm == "arm_1",])
+    df2 <- populate_bph_weeks(bph[bph$arm == "arm_2",])
+    bph <- rbind(df1, df2)
 
-    # calculate a column to store the weeks since baseline for each patient.  
-    bph <- bph %>%
-        # Filter rows with "baseline" in redcap_event_name and select relevant columns
-        filter(redcap_event_name %in% c("1_week_postop_arm_2", "4_weeks_posttx_arm_1")) %>%
-        select(study_id, reference_date = si29_date) %>%
 
-        # Group the data by study_id
-        group_by(study_id) %>%
-
-        # Join the baseline_date with the original data frame for each study_id
-        right_join(bph, by = "study_id") %>%
-
-        # Calculate the weeks since baseline for each study_id
-        mutate(
-            si29_date = as.POSIXct(si29_date, format = "%Y-%m-%d"), 
-            reference_date = as.POSIXct(reference_date, format = "%Y-%m-%d"), 
-            weeks_since_procedure = ifelse(redcap_event_name == "1_week_postop_arm_2", 
-                as.numeric(difftime(si29_date, (reference_date - weeks(1)), units = "weeks")), 
-                as.numeric(difftime(si29_date, (reference_date - weeks(4)), units = "weeks"))
-            ),
-            weeks_since_procedure = round(weeks_since_procedure, 2),  # Round to 0.01 (not strictly necessary)
-            weeks_since_procedure = ifelse(grepl("baseline", redcap_event_name), 0, weeks_since_procedure)
-        ) %>%
-
-        # Ungroup the data
-        ungroup()
-
-    # build in default behavior
+    # build in default behavior for the study arm
     if (is.null(study_arm)) { 
         # take the first available study arm for this patient
         study_arm <- bph[bph$study_id == patient_id, ]$arm[1]
     }
+    # build in default behavior for the week number
     if (is.null(patient_week_event_number)) { 
         # take the most recent visit week
         patient_week_event_number <- max(bph[bph$study_id == patient_id & bph$arm == study_arm, ]$week_event_number)
     }
+
 
     # The scoring is accomplished using the lurn package.
     bph <- score_lurn_si_29(bph)

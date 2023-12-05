@@ -70,6 +70,9 @@ library(stringr)
 library(lubridate)
 library(webshot)
 
+# data file
+datafile <- "../data/EH22021EnhancedClini-LURNSI29Report_DATA_2023-12-01_1444.csv"
+
 # AMG codes
 source("data_cleaning.R")
 source("plotting_functions.R")
@@ -96,7 +99,7 @@ splom_vars <- rev(splom_vars)
 symptoms <- rev(symptoms)
 
 bph <- clean_real_data(
-    read.csv("../data/EH22021EnhancedClini-LURNSI29Report_DATA_2023-09-08_1340.csv"), 
+    read.csv(datafile), 
     params$patient_id,
     params$study_arm, 
     params$patient_week,
