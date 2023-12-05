@@ -21,7 +21,9 @@ populate_bph_weeks <- function(bph){
             si29_date = as.POSIXct(si29_date, format = "%Y-%m-%d"), 
             reference_date = as.POSIXct(reference_date, format = "%Y-%m-%d"), 
             weeks_since_procedure = as.numeric(difftime(si29_date, (reference_date - weeks(nweeks)), units = "weeks")), 
-            weeks_since_procedure = round(weeks_since_procedure, 2),  # Round to 0.01 (not strictly necessary)
+            weeks_since_procedure = round(weeks_since_procedure, 2),  # Round to 0.01 (not strictly necessary),
+            weeks_since_procedure = ifelse(grepl("baseline", redcap_event_name), 0, weeks_since_procedure) # set the baseline event to t=0
+
         ) %>%
 
         # Ungroup the data
