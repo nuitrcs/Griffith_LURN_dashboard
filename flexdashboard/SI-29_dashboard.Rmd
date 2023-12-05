@@ -156,7 +156,7 @@ g <- plot_grid(
     line_plot, 
     ncol = 2, 
     align = "h", 
-    rel_widths = c(0.49,0.51), 
+    rel_widths = c(0.5,0.5), 
     axis = "l"
 )
 p <- plot_grid(
@@ -169,7 +169,7 @@ p <- plot_grid(
 
 # save the image and then read it back in so that I can annotate it more easily and have consistent sizing!
 tmp <- tempfile("image0", fileext = ".png")
-ggsave(tmp, p, width = 12, height = 9)
+ggsave(tmp, p, width = 9, height = 9)
 img <- image_read(tmp)
 
 if (input_params$annotate_plot) img <- annotate_img(img, "#a200aa")

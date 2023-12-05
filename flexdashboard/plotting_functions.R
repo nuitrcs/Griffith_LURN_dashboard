@@ -149,7 +149,7 @@ create_current_week_summary_bar_chart <- function(data_all, symptoms, input_para
         theme(
             panel.spacing = unit(0, "lines"),
             strip.text = element_text(size = 0, margin = margin(0,0,0,0)),
-            plot.margin = margin(0.7, 0.09, 0.85, 5, "cm"),
+            plot.margin = margin(0.7, 0.09, 0.85, 0.1, "cm"),
             panel.grid.major = element_blank(), 
             panel.grid.minor = element_blank(),
          ) 
@@ -211,7 +211,7 @@ create_current_week_summary_bar_chart <- function(data_all, symptoms, input_para
         xlab("") + 
         theme(
             strip.text = element_text(size = 0, margin = margin(0,0,0,0)),
-            plot.margin = margin(0., 0.09, 0.25, 5, "cm"),
+            plot.margin = margin(0., 0.09, 0.25, 0.1, "cm"),
             panel.grid.major = element_blank(), 
             panel.grid.minor = element_blank(),
          ) 
@@ -222,7 +222,7 @@ create_current_week_summary_bar_chart <- function(data_all, symptoms, input_para
         labels = c('Symptom', 'Total'), 
         rel_heights = c(length(symptoms) - 1, 1.4),
         label_y = c(1.01, 1.25),
-        label_x = c(0.25,0.37),
+        label_x = c(0.01,0.1),
         ncol = 1,
         align = "v",
         axis = "b"
@@ -446,7 +446,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
         theme(
             panel.spacing = unit(0, "lines"),
             strip.text = element_text(size = 0, margin = margin(0,0,0,0)),
-            plot.margin = margin(0.7, 7, 1.2, 0.1, "cm"),
+            plot.margin = margin(0.7, 1.3, 1.2, 0.1, "cm"),
             panel.grid.major = element_blank(), 
             panel.grid.minor = element_blank(),
             axis.title.y.right = element_text(margin = margin(l = 10))
@@ -520,7 +520,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
         theme_bw() + 
         theme(
             strip.text = element_text(size = 0, margin = margin(0,0,0,0)),
-            plot.margin = margin(0., 7, 0.25, 0.1, "cm"),
+            plot.margin = margin(0., 1.3, 0.25, 0.1, "cm"),
             panel.grid.major = element_blank(), 
             panel.grid.minor = element_blank(),
             axis.title.y.right = element_text(margin = margin(l = 10))
