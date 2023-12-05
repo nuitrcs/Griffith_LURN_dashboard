@@ -188,45 +188,52 @@ create_current_week_summary_bar_chart <- function(data_all, symptoms, input_para
             )
     }
 
-    # add the patient data to the figure and finish formatting
-    total <- total +
-        geom_bar(
-            data = summary_df[(summary_df$Symptom == "Total"),],
-            aes(x = Symptom, y = Value, fill = Color), 
-            stat = "identity", 
-            color = "black", 
-            width = 0.7,
-            size = 1
-        ) +
-        scale_fill_identity() +   
-        scale_x_discrete(breaks = "", labels = "", expand = c(0,0)) +
-        scale_y_continuous("Symptom level", breaks = breaks, labels = labels, limits = c(0, max_value)) +
-        facet_grid(Symptom ~ ., 
-            scales = "free_y", 
-            switch = "both"
-        ) +
-        coord_flip() +
-        guides(fill = FALSE) +
-        theme_bw() +
-        xlab("") + 
-        theme(
-            strip.text = element_text(size = 0, margin = margin(0,0,0,0)),
-            plot.margin = margin(0., 0.09, 0.25, 0.1, "cm"),
-            panel.grid.major = element_blank(), 
-            panel.grid.minor = element_blank(),
-         ) 
+    if (input_params$show_total){
+        # add the patient data to the figure and finish formatting
+        total <- total +
+            geom_bar(
+                data = summary_df[(summary_df$Symptom == "Total"),],
+                aes(x = Symptom, y = Value, fill = Color), 
+                stat = "identity", 
+                color = "black", 
+                width = 0.7,
+                size = 1
+            ) +
+            scale_fill_identity() +   
+            scale_x_discrete(breaks = "", labels = "", expand = c(0,0)) +
+            scale_y_continuous("Symptom level", breaks = breaks, labels = labels, limits = c(0, max_value)) +
+            facet_grid(Symptom ~ ., 
+                scales = "free_y", 
+                switch = "both"
+            ) +
+            coord_flip() +
+            guides(fill = FALSE) +
+            theme_bw() +
+            xlab("") + 
+            theme(
+                strip.text = element_text(size = 0, margin = margin(0,0,0,0)),
+                plot.margin = margin(0., 0.09, 0.25, 0.1, "cm"),
+                panel.grid.major = element_blank(), 
+                panel.grid.minor = element_blank(),
+            ) 
 
 
-    # combine the main and total figures and return the final figure to the user
-    g <- plot_grid(main, total, 
-        labels = c('Symptom', 'Total'), 
-        rel_heights = c(length(symptoms) - 1, 1.4),
-        label_y = c(1.01, 1.25),
-        label_x = c(0.01,0.1),
-        ncol = 1,
-        align = "v",
-        axis = "b"
-    )
+        # combine the main and total figures and return the final figure to the user
+        g <- plot_grid(main, total, 
+            labels = c('Symptom', 'Total'), 
+            rel_heights = c(length(symptoms) - 1, 1.4),
+            label_y = c(1.01, 1.25),
+            label_x = c(0.01,0.1),
+            ncol = 1,
+            align = "v",
+            axis = "b"
+        )
+    } else {
+        g <- main + 
+            scale_y_continuous("Symptom level", breaks = breaks, labels = labels, limits = c(0, max_value))# +
+            # ggtitle("Symptom") +
+            # theme(plot.title = element_text(hjust = -0.17, face = "bold"))
+    }
 
 
     return(g)
@@ -492,39 +499,42 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
             )
     }
 
-    # add the patient data to the figure and finish formatting
-    total <- total +
-        geom_line(
-            data = merged_df_clean_limit_week[(merged_df_clean_limit_week$Symptom == "Total"),], 
-            aes(x = Week, y = Value)
-        ) +
-        geom_point(
-            data = merged_df_clean_limit_week[(merged_df_clean_limit_week$Symptom == "Total"),], 
-            aes(x = Week, y = Value, fill = Color), 
-            shape = 21, 
-            color = "black", 
-            size = 4, 
-            stroke = 1.5
-        ) + 
-        scale_fill_identity() +   
-        facet_grid(Symptom ~ ., 
-            scales = "free_y", 
-            switch = "both",
-        ) + 
-        scale_x_continuous("Weeks since procedure", breaks = breaks, labels = labels, limits = c(-1, 24)) + 
+    if (input_params$show_total){
 
-        expand_limits(x = c(-1, 26)) + 
-        ylab("") + 
-        # theme_void() + 
-        guides(fill = FALSE) +
-        theme_bw() + 
-        theme(
-            strip.text = element_text(size = 0, margin = margin(0,0,0,0)),
-            plot.margin = margin(0., 1.3, 0.25, 0.1, "cm"),
-            panel.grid.major = element_blank(), 
-            panel.grid.minor = element_blank(),
-            axis.title.y.right = element_text(margin = margin(l = 10))
-        ) 
+        # add the patient data to the figure and finish formatting
+        total <- total +
+            geom_line(
+                data = merged_df_clean_limit_week[(merged_df_clean_limit_week$Symptom == "Total"),], 
+                aes(x = Week, y = Value)
+            ) +
+            geom_point(
+                data = merged_df_clean_limit_week[(merged_df_clean_limit_week$Symptom == "Total"),], 
+                aes(x = Week, y = Value, fill = Color), 
+                shape = 21, 
+                color = "black", 
+                size = 4, 
+                stroke = 1.5
+            ) + 
+            scale_fill_identity() +   
+            facet_grid(Symptom ~ ., 
+                scales = "free_y", 
+                switch = "both",
+            ) + 
+            scale_x_continuous("Weeks since procedure", breaks = breaks, labels = labels, limits = c(-1, 24)) + 
+
+            expand_limits(x = c(-1, 26)) + 
+            ylab("") + 
+            # theme_void() + 
+            guides(fill = FALSE) +
+            theme_bw() + 
+            theme(
+                strip.text = element_text(size = 0, margin = margin(0,0,0,0)),
+                plot.margin = margin(0., 1.3, 0.25, 0.1, "cm"),
+                panel.grid.major = element_blank(), 
+                panel.grid.minor = element_blank(),
+                axis.title.y.right = element_text(margin = margin(l = 10))
+            ) 
+    } 
 
     if (input_params$autoscale_symptoms_axis){
         # function to calculate custom breaks
@@ -555,14 +565,17 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
             },
             position = "right",
         )
-        total <- total + scale_y_continuous(
-            "Symptom level", 
-            expand = expansion(mult = c(0.2, 0.2)),
-            breaks = function(x) {
-                return(custom_breaks(x))
-            },
-            position = "right",
-        )
+
+        if (input_params$show_total){
+            total <- total + scale_y_continuous(
+                "Symptom level", 
+                expand = expansion(mult = c(0.2, 0.2)),
+                breaks = function(x) {
+                    return(custom_breaks(x))
+                },
+                position = "right",
+            )
+        }
     } else {
         main <- main + scale_y_continuous(
             "Symptom level", 
@@ -571,22 +584,30 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
             limits = c(0, 100),
             position = "right"
         )
-        total <- total + scale_y_continuous(
-            "Symptom level", 
-            expand = expansion(mult = c(0.15, 0.15)), 
-            breaks = c(0, 25, 50, 75, 100),
-            limits = c(0, 100),
-            position = "right"
-        )
+        if (input_params$show_total){
+            total <- total + scale_y_continuous(
+                "Symptom level", 
+                expand = expansion(mult = c(0.15, 0.15)), 
+                breaks = c(0, 25, 50, 75, 100),
+                limits = c(0, 100),
+                position = "right"
+            )
+        }
     }
 
-    # combine the main and total panels into one figure and return this to the use
-    g <- plot_grid(main, total, 
-        rel_heights = c(length(symptoms) - 1, 1.4),
-        ncol = 1,
-        align = "v",
-        axis = "b"
-    )
+    if (input_params$show_total){
+
+        # combine the main and total panels into one figure and return this to the use
+        g <- plot_grid(main, total, 
+            rel_heights = c(length(symptoms) - 1, 1.4),
+            ncol = 1,
+            align = "v",
+            axis = "b"
+        )
+    } else {
+        g <- main + 
+            scale_x_continuous("Weeks since procedure", breaks = breaks, labels = labels, limits = c(-1, 24))
+    }
     
     return(g)
 

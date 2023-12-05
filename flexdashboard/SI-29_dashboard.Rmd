@@ -7,6 +7,7 @@ params:
     reference_population : "study_arm"
     show_density: FALSE
     show_median: TRUE
+    show_total: TRUE
     show_table: FALSE
     annotate_plot: FALSE
     autoscale_symptoms_axis: FALSE
@@ -118,6 +119,7 @@ input_params <- list(
     reference_population = params$reference_population,
     show_median = params$show_median, 
     show_density = params$show_density,
+    show_total = params$show_total,
     annotate_plot = params$annotate_plot
 )
 
