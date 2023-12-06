@@ -670,42 +670,97 @@ create_legend <- function(
     return(legend)
 }
 
-annotate_img <- function(img, acolor){
-    img <- img  %>%
-        # left plot label
-        # image_annotate(sprintf('\u2191'), size = 200, color = acolor,
-        #     boxcolor = "transparent", degrees = 90, location = "+780+1650") %>%
-        image_annotate("Plots on the left show\nyour present symptoms\nin color-filled rectangles.", 
-            size = 60, color = acolor, boxcolor = "transparent", degrees = 0, location = "+170+1640", font = 'Times') %>%
-        # right plot label
-        # image_annotate(sprintf('\u2191'), size = 200, color = acolor,
-        #     boxcolor = "transparent", degrees = -90, location = "+2800+1800") %>%
-        image_annotate("Plots on the right show\nyour symptoms over time\nin color-filled circles.", 
-            size = 60, color = acolor, boxcolor = "transparent", degrees = 0, location = "+2890+1640", font = 'Times')  %>%
-        # left plot reference (TODO - link x position to actual total reference value)
-        image_annotate(sprintf('\u2191'), size = 200, color = acolor,
-            boxcolor = "transparent", degrees = 30, location = "+960+1780")  %>%
-        # image_annotate("Half of the reference population\nhave values inside the gray region", size = 60, color = acolor,
-        #     boxcolor = "transparent", degrees = 0, location = "+300+1900", font = 'Times')  %>% 
-        image_annotate("The reference population is shown in\ngrascale; darker gray means more patients\nwith that symptom value.", 
-            size = 60, color = acolor,  boxcolor = "transparent", degrees = 0, location = "+170+1900", font = 'Times')  %>%        
-        # right plot reference (TODO - link x position to actual total reference value)
-        image_annotate(sprintf('\u2191'), size = 200, color = acolor,
-            boxcolor = "transparent", degrees = -30, location = "+2460+1850")  %>%
-        # image_annotate("Half of the reference population\nhave values inside the gray region", size = 60, color = acolor,
-        #     boxcolor = "transparent", degrees = 0, location = "+2580+1900", font = 'Times')  %>%      
-        image_annotate("The reference population is shown in\ngrayscale; darker gray means more patients\nwith that symptom value.", 
-            size = 60, color = acolor, boxcolor = "transparent", degrees = 0, location = "+2580+1900", font = 'Times')  %>%   
-        # left plot explanation (TODO - link x position to actual patient value and automatic text)
-        image_annotate(sprintf('\u2191'), size = 200, color = acolor,
-            boxcolor = "transparent", degrees = 210, location = "+1110+1700")  %>%
-        image_annotate("Your total score is similar to\nthat of the reference population.", 
-            size = 60, color = acolor, boxcolor = "transparent", degrees = 0, location = "+1140+1480", font = 'Times')  %>%
-        # left plot explanation (TODO - link x position to actual patient value and automatic text)
-        image_annotate(sprintf('\u2191'), size = 200, color = acolor,
-            boxcolor = "transparent", degrees = 210, location = "+2330+1750")  %>%
-        image_annotate("Your total score has decreased\nsince your last visit.", 
-            size = 60, color = acolor, boxcolor = "transparent", degrees = 0, location = "+2330+1480", font = 'Times') 
+annotate_plot <- function(plt, acolor){
+    p <- plt + 
 
-    return(img) 
+        # add to the margin to give space for annotations
+        theme(plot.margin = margin(0., 2, , 2, "in")) + 
+    
+        ########################
+        # LEFT
+        ########################
+
+        # left plot label
+        annotate(
+            "text",
+            label = "Plots on the left show\nyour present symptoms\nin color-filled rectangles.\n(Please see the legend\nat the bottom.)", 
+            size = 4, color = acolor, x = -0.2, y = 1, hjust = 0, vjust = 1,
+        ) +
+
+        # left plot reference 
+        # TODO : link x,y position to actual total reference value + include type of reference
+        annotate(
+            "text",
+            label = sprintf('\u2192'), 
+            size = 16, color = acolor, x = 0.19, y = 0.26, hjust = 1, vjust = 1, angle = 45
+        ) + 
+        annotate(
+            "text",
+            label = "The reference population is shown in gray.", 
+            size = 4, color = acolor, x = -0.2, y = 0.2, hjust = 0, vjust = 1
+        ) + 
+
+        # left plot explanation 
+        # TODO : link x position to actual patient value + automatic text
+        annotate(
+            "text",
+            label = sprintf('\u2192'), 
+            size = 16, color = acolor, x = 0.23, y = 0.32, hjust = 0, vjust = 1, angle = 225
+        ) + 
+        annotate(
+            "text",
+            label = "Your value is similar to\nthat of the reference population.", 
+            size = 4, color = acolor, x = 0.21, y = 0.39, hjust = 0, vjust = 1
+        ) + 
+
+
+        ########################
+        # RIGHT
+        ########################
+
+        # right plot label
+        annotate(
+            "text",
+            label = "Plots on the right show\nyour symptoms over time\nin color-filled circles.\n(Please see the legend\nat the bottom.)", 
+            size = 4, color = acolor, x = 1.2, y = 1, hjust = 1, vjust = 1,
+        ) +
+
+        # right plot reference 
+        # TODO : link x,y position to actual total reference value + include type of reference
+        annotate(
+            "text",
+            label = sprintf('\u2192'), 
+            size = 16, color = acolor, x = 0.87, y = 0.2, hjust = 0, vjust = 1, angle = 135
+        ) + 
+        annotate(
+            "text",
+            label = "The reference population is shown in gray.", 
+            size = 4, color = acolor, x = 1.2, y = 0.2, hjust = 1, vjust = 1
+        ) + 
+
+
+        # left plot explanation 
+        # TODO : link x position to actual patient value + automatic text
+        annotate(
+            "text",
+            label = sprintf('\u2192'), 
+            size = 16, color = acolor, x = 0.855, y = 0.32, hjust = 0, vjust = 1, angle = -90
+        ) + 
+        annotate(
+            "text",
+            label = "Your total score has decreased\nsince your last visit.", 
+            size = 4, color = acolor, x = 0.8, y = 0.39, hjust = 0, vjust = 1
+        ) +
+
+        ########################
+        # LEGEND
+        ########################
+        annotate(
+            "text",
+            label = "The legend below explains the colors used in all plots above.", 
+            size = 4, color = acolor, x = 0.5, y = 0.13, hjust = 0.5, vjust = 0
+        ) 
+
+    return(p)
+
 }

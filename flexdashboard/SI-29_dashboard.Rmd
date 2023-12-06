@@ -114,11 +114,6 @@ input_params <- params
 input_params$study_arm <- bph$study_arm
 input_params$patient_week <- bph$patient_week
 
-
-
-
-
-
 ```
 
 
@@ -165,13 +160,17 @@ p <- plot_grid(
 
 # save the image and then read it back in so that I can annotate it more easily and have consistent sizing!
 tmp <- tempfile("image0", fileext = ".png")
-ggsave(tmp, p, width = 9, height = 9)
+
+if (input_params$annotate_plot) {
+    p <- annotate_plot(p, "#a200aa")
+    ggsave(tmp, p, width = 13, height = 9, dpi = 300, bg = "white")
+} else {
+    ggsave(tmp, p, width = 9, height = 9, dpi = 300, bg = "white")
+}
+
 img <- image_read(tmp)
 
-if (input_params$annotate_plot) img <- annotate_img(img, "#a200aa")
-
 image_trim(img)
-
 ```
 
 
