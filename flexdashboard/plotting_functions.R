@@ -13,7 +13,7 @@ get_interpolated_color <- function(value, cp = custom_palette) {
     return(rgb(color_ramp(value), maxColorValue = 255))
 }
 
-create_current_week_summary_bar_chart <- function(data_all, symptoms, input_params, color_scale = 3.){
+create_current_week_summary_bar_plot <- function(data_all, symptoms, input_params, color_scale = 3.){
     # Produce a horizontal bar chart showing the symptoms for the selected patient on the selected week
     # in relation to the reference population.  If input_params$show_median or input_params$show_density are TRUE,
     # then the reference population is also plotted in the figure (either as a median line or a grayscale density 
@@ -236,7 +236,13 @@ create_current_week_summary_bar_chart <- function(data_all, symptoms, input_para
     }
 
 
-    return(g)
+    return(
+        list(
+            "plot" = g,
+            "data" = summary_df,
+            "max_x" = max_value
+        )
+    )
 }
 
 create_time_series_line_plot <- function(data_all, symptoms, input_params, color_scale = 3.){
@@ -609,14 +615,20 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
             scale_x_continuous("Weeks since procedure", breaks = breaks, labels = labels, limits = c(-1, 24))
     }
     
-    return(g)
+    return(
+        list(
+            "plot" = g,
+            "data" = merged_df_clean_limit_week,
+            "limits" = limits
+        )
+    )
 
 }
 
 create_legend <- function(
     palette = custom_palette,
     breaks = c(0, 1),
-    labels = c("Below\nreference\npopulation\n(better)", "Above\nreference\npopulation\n(worse)"),
+    labels = c("Below\nreference\n(better)", "Above\nreference\n(worse)"),
     title = "",
     fontsize = 12,
     textcolor = "#555555",
@@ -670,7 +682,25 @@ create_legend <- function(
     return(legend)
 }
 
-annotate_plot <- function(plt, acolor){
+annotate_plot <- function(plt, acolor, bar_data, bar_max_x, line_data, line_limits, input_params){
+
+    # get the locations of the annotations from the data
+    if (input_params$show_total){
+        # we are labelling the total plot
+        bar_data_use = bar_data[bar_data$Symptom == "Total",]
+    } else {
+        # we are labelling the Incontinence plot
+        bar_data_use = bar_data[bar_data$Symptom == "Incontinence",]
+    }
+    offset_x <- 0.13 # where the 0 value on the plot is (found from trial and error)
+    frac_plot <- 0.35 # fraction of the horizontal space occupied by plot (estimate)
+    arrow_half_size <- 0.02 # estimate of the size of half the arrow in the x dimension when rotated (!) to offest
+    bar_ref_x <- bar_data_use$Median/bar_max_x*frac_plot + offset_x - arrow_half_size
+    bar_patient_x <- bar_data_use$Value/bar_max_x*frac_plot + offset_x + arrow_half_size
+
+    # get the reference population description
+    ref_type <- ifelse(input_params$reference_population == "study_arm", "similar patients in this study", "your baseline")
+
     p <- plt + 
 
         # add to the margin to give space for annotations
@@ -683,7 +713,7 @@ annotate_plot <- function(plt, acolor){
         # left plot label
         annotate(
             "text",
-            label = "Plots on the left show\nyour present symptoms\nin color-filled rectangles.\n(Please see the legend\nat the bottom.)", 
+            label = gsub('(.{1,25})(\\s|$)', '\\1\n', paste0("Plots on the left show your present symptoms in color-filled rectangles.  Colors indicate how your symptoms compare to a reference of ", ref_type ,", with blue where your value is lower than the reference and orange where your value is higher than the reference.  (Please see the legend at the bottom.)")), 
             size = 4, color = acolor, x = -0.2, y = 1, hjust = 0, vjust = 1,
         ) +
 
@@ -692,12 +722,12 @@ annotate_plot <- function(plt, acolor){
         annotate(
             "text",
             label = sprintf('\u2192'), 
-            size = 16, color = acolor, x = 0.19, y = 0.26, hjust = 1, vjust = 1, angle = 45
+            size = 16, color = acolor, x = bar_ref_x, y = 0.22, hjust = 0.5, vjust = 0.5, angle = 45
         ) + 
         annotate(
             "text",
-            label = "The reference population is shown in gray.", 
-            size = 4, color = acolor, x = -0.2, y = 0.2, hjust = 0, vjust = 1
+            label = gsub('(.{1,45})(\\s|$)', '\\1\n', paste("The reference value from", ref_type, "is shown in gray.")), 
+            size = 4, color = acolor, x = -0.2, y = 0.19, hjust = 0, vjust = 1
         ) + 
 
         # left plot explanation 
@@ -705,7 +735,7 @@ annotate_plot <- function(plt, acolor){
         annotate(
             "text",
             label = sprintf('\u2192'), 
-            size = 16, color = acolor, x = 0.23, y = 0.32, hjust = 0, vjust = 1, angle = 225
+            size = 16, color = acolor, x = bar_patient_x, y = 0.32, hjust = 0.5, vjust = 0.5, angle = 225
         ) + 
         annotate(
             "text",
@@ -721,7 +751,7 @@ annotate_plot <- function(plt, acolor){
         # right plot label
         annotate(
             "text",
-            label = "Plots on the right show\nyour symptoms over time\nin color-filled circles.\n(Please see the legend\nat the bottom.)", 
+            label = gsub('(.{1,25})(\\s|$)', '\\1\n', "Plots on the right show your symptoms over time in color-filled circles.  Colors and the reference used to determine them are defined in the same way as for the plots on the left."), 
             size = 4, color = acolor, x = 1.2, y = 1, hjust = 1, vjust = 1,
         ) +
 
@@ -730,12 +760,12 @@ annotate_plot <- function(plt, acolor){
         annotate(
             "text",
             label = sprintf('\u2192'), 
-            size = 16, color = acolor, x = 0.87, y = 0.2, hjust = 0, vjust = 1, angle = 135
+            size = 16, color = acolor, x = 0.87, y = 0.2, hjust = 1, vjust = 1, angle = 135
         ) + 
         annotate(
             "text",
-            label = "The reference population is shown in gray.", 
-            size = 4, color = acolor, x = 1.2, y = 0.2, hjust = 1, vjust = 1
+            label = gsub('(.{1,45})(\\s|$)', '\\1\n', paste("The reference values from", ref_type, "are shown in gray at each week.")), 
+            size = 4, color = acolor, x = 1.2, y = 0.19, hjust = 1, vjust = 1
         ) + 
 
 
@@ -744,7 +774,7 @@ annotate_plot <- function(plt, acolor){
         annotate(
             "text",
             label = sprintf('\u2192'), 
-            size = 16, color = acolor, x = 0.855, y = 0.32, hjust = 0, vjust = 1, angle = -90
+            size = 16, color = acolor, x = 0.855, y = 0.32, hjust = 1, vjust = 1, angle = -90
         ) + 
         annotate(
             "text",

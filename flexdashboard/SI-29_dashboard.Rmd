@@ -130,7 +130,7 @@ Row {data-height=1200, id="chart1"}
     
 ```{r, fig.width = 10, fig.height = 14}
 
-bar_chart <- create_current_week_summary_bar_chart(
+bar_plot <- create_current_week_summary_bar_plot(
     bph$dat_arm, 
     symptoms, 
     input_params
@@ -143,8 +143,8 @@ line_plot <- create_time_series_line_plot(
 legend <- create_legend()
 
 g <- plot_grid(
-    bar_chart, 
-    line_plot, 
+    bar_plot$plot, 
+    line_plot$plot, 
     ncol = 2, 
     align = "h", 
     rel_widths = c(0.5,0.5), 
@@ -162,7 +162,7 @@ p <- plot_grid(
 tmp <- tempfile("image0", fileext = ".png")
 
 if (input_params$annotate_plot) {
-    p <- annotate_plot(p, "#a200aa")
+    p <- annotate_plot(p, "#a200aa", bar_plot$data, bar_plot$max_x, line_plot$data, line_plot$limits, input_params)
     ggsave(tmp, p, width = 13, height = 9, dpi = 300, bg = "white")
 } else {
     ggsave(tmp, p, width = 9, height = 9, dpi = 300, bg = "white")
