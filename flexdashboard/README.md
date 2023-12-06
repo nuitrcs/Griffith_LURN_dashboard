@@ -5,7 +5,7 @@ This directory contains the dashboard code: `SI-29_dashboard.Rmd`.  To compile t
 ```
 $ conda activate r4-griffith-wsl
 $ Rscript -e "rmarkdown::render('SI-29_dashboard.Rmd', params = list(patient_id = 100, patient_week = 0))"
-$ Rscript -e "webshot::rmdshot(doc = 'SI-29_dashboard.Rmd', rmd_args = list(params = list(patient_id = 100, patient_week = 0)), file = 'SI-29_plots.png', vwidth = 1000, vheight = 800)"
+$ Rscript -e "webshot::rmdshot(doc = 'SI-29_dashboard.Rmd', rmd_args = list(params = list(patient_id = 100, patient_week = 0, include_table_tab = FALSE)), file = 'SI-29_plots.png', vwidth = 1000, vheight = 800)"
 $ Rscript -e "webshot::rmdshot(doc = 'SI-29_dashboard.Rmd', rmd_args = list(params = list(patient_id = 100, patient_week = 0, show_table = TRUE)), file = 'SI-29_tables.png', vwidth = 1275, vheight = 2000, delay = 1)"
 ```
 - The first line activates my `conda` environment, which contains all the libraries listed in the `README.md` file in the root directory.  (If you haven't created a conda environment, you don't need to execute that line).  
@@ -18,6 +18,7 @@ $ Rscript -e "webshot::rmdshot(doc = 'SI-29_dashboard.Rmd', rmd_args = list(para
     - `show_median`: boolean defining whether to show the median values for the reference population (default = TRUE)
     - `show_total`: boolean defining whether to show the total plots (default = TRUE)
     - `show_table`: boolean defining whether to show the table tab first (default = FALSE, i.e., show the plots tab first)
+    - `include_table_tab`: boolean defining whether to include the table tab in the app (default = TRUE).  Setting this to FALSE may be useful if rendering the plot to an image.
     - `annotate_plot`: boolean defining whether to annotate the plot with descriptions and instructions (default =  FALSE, currently not fully implements)
     - `autoscale_symptoms_axis`: boolean defining whether to scale the symptoms axis to the data (default = FALSE, i.e., scale from 0 to 100 for all symptoms)
 - The third line renders the tab with the figures into a .png image.  This takes similar arguments to the previous command, and also has a file name and a width and height.  I selected these width and height values to be the same aspect ratio as an 8.5/11 inch paper.

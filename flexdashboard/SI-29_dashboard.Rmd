@@ -9,6 +9,7 @@ params:
     show_median: TRUE
     show_total: TRUE
     show_table: FALSE
+    include_table_tab: TRUE
     annotate_plot: FALSE
     autoscale_symptoms_axis: FALSE
 output: 
@@ -109,19 +110,10 @@ bph <- clean_real_data(
 )
 
 # save the input parameters (so that I can defaults from data_cleaning)
-input_params <- list(
-    patient_id = params$patient_id, 
-    patient_week = bph$patient_week, 
-    study_arm = bph$study_arm,
-    show_density = params$show_density,
-    show_median = params$show_median,
-    autoscale_symptoms_axis = params$autoscale_symptoms_axis,
-    reference_population = params$reference_population,
-    show_median = params$show_median, 
-    show_density = params$show_density,
-    show_total = params$show_total,
-    annotate_plot = params$annotate_plot
-)
+input_params <- params
+input_params$study_arm <- bph$study_arm
+input_params$patient_week <- bph$patient_week
+
 
 
 
@@ -130,9 +122,11 @@ input_params <- list(
 ```
 
 
-
-Plots
+`r if(input_params$include_table_tab == FALSE) {"\\begin{comment}"} else {NULL}`
+Plots 
 =====================================   
+`r if(input_params$include_table_tab == FALSE) {"\\end{comment}"} else {NULL}`
+
 
 Row {data-height=1200, id="chart1"}
 -------------------------------------
@@ -194,8 +188,9 @@ In all panels, the color indicates how your symptom level compares with that of 
 -->
 
 
+`r if(input_params$include_table_tab == FALSE) {"\\begin{comment}"} else {NULL}`
 
-Tables
+Tables 
 =====================================  
 
 Row {data-width=1050}
@@ -217,3 +212,5 @@ if (params$show_table) {
 }
 cat(js_code)
 ```
+
+`r if(input_params$include_table_tab == FALSE) {"\\end{comment}"} else {NULL}`
