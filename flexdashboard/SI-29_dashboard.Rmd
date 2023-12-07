@@ -11,6 +11,7 @@ params:
     show_table: FALSE
     include_table_tab: TRUE
     annotate_plot: FALSE
+    annotation_breakpoint: 0.1
     autoscale_symptoms_axis: FALSE
 output: 
     flexdashboard::flex_dashboard:

@@ -20,6 +20,7 @@ $ Rscript -e "webshot::rmdshot(doc = 'SI-29_dashboard.Rmd', rmd_args = list(para
     - `show_table`: boolean defining whether to show the table tab first (default = FALSE, i.e., show the plots tab first)
     - `include_table_tab`: boolean defining whether to include the table tab in the app (default = TRUE).  Setting this to FALSE may be useful if rendering the plot to an image.
     - `annotate_plot`: boolean defining whether to annotate the plot with descriptions and instructions (default =  FALSE, currently not fully implements)
+    - `annotation_breakpoint`: numerical value indicating the percent difference that should be considered enough to indicate a patient's value is "greater/less than" vs. "similar to" than the references (default = 0.1)
     - `autoscale_symptoms_axis`: boolean defining whether to scale the symptoms axis to the data (default = FALSE, i.e., scale from 0 to 100 for all symptoms)
 - The third line renders the tab with the figures into a .png image.  This takes similar arguments to the previous command, and also has a file name and a width and height.  I selected these width and height values to be the same aspect ratio as an 8.5/11 inch paper.
 - The fourth line is similar to the previous one, but renders the tab with the table to a .png image.  Note that there is a delay built in because the .Rmd code needs some time to selecte the correct tab. 

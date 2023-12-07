@@ -387,7 +387,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
     }
 
     # get the maximum x value for the plot
-    max_x <- max(merged_df_clean_limit_week$Week)
+    max_x <- max(max(merged_df_clean_limit_week$Week), max(merged_df_clean_limit_week$week_event_number))
     limits$max_x <- max_x
 
     # create the main plot (excluding the "Total" value)
@@ -455,8 +455,8 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
             scales = "free_y", 
             switch = "both",
         ) + 
-        scale_x_continuous("", breaks = breaks, labels = labels2, limits = c(-1, max_x)) + 
-        expand_limits(x = c(-1, max_x + 2)) + 
+        scale_x_continuous("", breaks = breaks, labels = labels2, limits = c(-0.01*max_x, max_x*1.01)) + 
+        expand_limits(x = c(-0.01*max_x, max_x*1.01)) + 
         ylab("") + 
         # theme_void() + 
         guides(fill = FALSE) +
@@ -531,9 +531,9 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
                 scales = "free_y", 
                 switch = "both",
             ) + 
-            scale_x_continuous("Weeks since procedure", breaks = breaks, labels = labels, limits = c(-1, max_x)) + 
+            scale_x_continuous("Weeks since procedure", breaks = breaks, labels = labels, limits = c(-0.01*max_x, max_x*1.01)) + 
 
-            expand_limits(x = c(-1, max_x + 2)) + 
+            expand_limits(x = c(-0.01*max_x, max_x*1.01)) + 
             ylab("") + 
             # theme_void() + 
             guides(fill = FALSE) +
@@ -590,7 +590,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
     } else {
         main <- main + scale_y_continuous(
             "Symptom level", 
-            expand = expansion(mult = c(0.15, 0.15)), 
+            expand = expansion(mult = c(0.2, 0.2)), 
             breaks = c(0, 25, 50, 75, 100),
             limits = c(0, 100),
             position = "right"
@@ -598,7 +598,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
         if (input_params$show_total){
             total <- total + scale_y_continuous(
                 "Symptom level", 
-                expand = expansion(mult = c(0.15, 0.15)), 
+                expand = expansion(mult = c(0.2, 0.2)), 
                 breaks = c(0, 25, 50, 75, 100),
                 limits = c(0, 100),
                 position = "right"
@@ -617,7 +617,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
         )
     } else {
         g <- main + 
-            scale_x_continuous("Weeks since procedure", breaks = breaks, labels = labels, limits = c(-1, max_x + 2))
+            scale_x_continuous("Weeks since procedure", breaks = breaks, labels = labels, limits = c(-0.01*max_x, max_x*1.01))
     }
     
     return(
@@ -688,8 +688,15 @@ create_legend <- function(
 }
 
 annotate_plot <- function(plt, color, fill, bar_data, bar_max_x, line_data, line_limits, input_params){
+    # plt is the ggplot object to annotate
+    # color is for the text and lines in the annotations
+    # fill is the background color of the text boxes
+    # bar_data and bar_max_x come directly from the output of create_current_week_summary_bar_plot
+    # line_data and line_limits come directly from the output of create_time_series_line_plot
+    # input_params is contains a named list of parameters
 
-    char_frac <- 0.0035 # fraction of screen space for one character (estimate)
+
+    twidth <- 0.21 # width of the text boxes (except for the legend)
 
     # get the correct slice of the data for positioning the annotations
     if (input_params$show_total){
@@ -697,11 +704,13 @@ annotate_plot <- function(plt, color, fill, bar_data, bar_max_x, line_data, line
         bar_data_use <- bar_data[bar_data$Symptom == "Total",]
         line_data_use <- line_data[line_data$Symptom == "Total",] 
         current_value_type <- "Total"
+        ycorrection <- 0
     } else {
         # we are labelling the Incontinence plot
         bar_data_use = bar_data[bar_data$Symptom == "Incontinence",]
         line_data_use = line_data[line_data$Symptom == "Incontinence",]
         current_value_type <- "Incontinence"
+        ycorrection <- 0.05
     }
 
     # get the reference population description
@@ -718,8 +727,8 @@ annotate_plot <- function(plt, color, fill, bar_data, bar_max_x, line_data, line
 
     # get the description of the current patient value relative to the reference population
     current_value_desc <- case_when(
-        bar_data_use$cval > 0.2 ~ "higher than",
-        bar_data_use$cval < 0.2 ~ "lower than",
+        bar_data_use$cval > 0.5 + input_params$annotation_breakpoint ~ "higher than",
+        bar_data_use$cval < 0.5 - input_params$annotation_breakpoint ~ "lower than",
         TRUE ~ "similar to"
     )
 
@@ -727,7 +736,7 @@ annotate_plot <- function(plt, color, fill, bar_data, bar_max_x, line_data, line
     # FOR THE LINE PLOT ANNOTATIONS
     ###############
     line_data_use_current <- line_data_use %>% slice(which.max(week_event_number))
-    offset_x <- 0.52 # where the x=0 value is on the plot (found from trial and error)
+    offset_x <- 0.515 # where the x=0 value is on the plot (found from trial and error)
     offset_y <- 0.245 # where the y=0 value is on the plot (found from trial and error)
     frac_plot_y <- 0.06 # fraction of the vertical space occupied by plot (estimate)
     line_max_y <- line_limits[line_limits$Symptom == current_value_type,]$max_y 
@@ -744,8 +753,8 @@ annotate_plot <- function(plt, color, fill, bar_data, bar_max_x, line_data, line
     vprev <- foo$Value
     pdiff <- (vnow - vprev)/vprev
     current_trend_desc <- case_when(
-        pdiff > 0.2 ~ "increased",
-        pdiff < -0.2 ~ "decreased",
+        pdiff > input_params$annotation_breakpoint ~ "increased",
+        pdiff < -1*input_params$annotation_breakpoint ~ "decreased",
         TRUE ~ "not changed significantly"
     )
 
@@ -762,23 +771,23 @@ annotate_plot <- function(plt, color, fill, bar_data, bar_max_x, line_data, line
 
         # left plot label
         annotate(
-            "text_box", size = 4, color = color, fill = fill, x = -0.2, y = 0.97, hjust = 0, vjust = 1, width = 0.23,
+            "text_box", size = 4, color = color, fill = fill, x = -0.2, y = 0.97, hjust = 0, vjust = 1, width = twidth,
             label = paste0("Plots on the left show your present symptoms in color-filled rectangles.  Colors indicate how your symptoms compare to a reference of ", ref_type ,", with blue where your value is lower than the reference and orange where your value is higher than the reference.  (Please see the legend at the bottom.)")
         ) +
 
         # left plot explanation 
-        annotate("segment", x = 0.02, xend = bar_patient_x, y = 0.28, yend = 0.255, color = color) +
-        annotate("point", x = bar_patient_x, y = 0.255, color = color, size = 3) +
+        annotate("segment", x = 0.0, xend = bar_patient_x, y = 0.28 + ycorrection, yend = 0.255 + ycorrection, color = color) +
+        annotate("point", x = bar_patient_x, y = 0.255 + ycorrection, color = color, size = 3) +
         annotate(
-            "text_box", size = 4, color = color, fill = fill, x = -0.2, y = 0.3, hjust = 0, vjust = 1, width = 0.23,
-            label = paste("Your",current_value_type, "value is", current_value_desc, "that of the reference population.")
+            "text_box", size = 4, color = color, fill = fill, x = -0.2, y = 0.3 + ycorrection, hjust = 0, vjust = 1, width = twidth,
+            label = paste("Your",current_value_type, "value is", current_value_desc, "that of the reference.")
         ) + 
 
         # left reference explanation
-        annotate("segment", x = 0.02, xend = bar_ref_x, y = 0.16, yend = 0.24, color = color) +
-        annotate("point", x = bar_ref_x, y = 0.24, color = color, size = 3) +
+        annotate("segment", x = 0.0, xend = bar_ref_x, y = 0.16 + ycorrection, yend = 0.24 + ycorrection, color = color) +
+        annotate("point", x = bar_ref_x, y = 0.24 + ycorrection, color = color, size = 3) +
         annotate(
-            "text_box", size = 4, color = color, fill = fill, x = -0.2, y = 0.18, hjust = 0, vjust = 1, width = 0.23,
+            "text_box", size = 4, color = color, fill = fill, x = -0.2, y = 0.18 + ycorrection, hjust = 0, vjust = 1, width = twidth,
             label = paste("The reference value from", ref_type, "is shown in gray.")
         ) + 
 
@@ -788,25 +797,25 @@ annotate_plot <- function(plt, color, fill, bar_data, bar_max_x, line_data, line
 
         # right plot label
         annotate(
-            "text_box", size = 4, color = color, fill = fill, x = 1.2, y = 0.97, hjust = 1, vjust = 1, width = 0.23,
+            "text_box", size = 4, color = color, fill = fill, x = 1.2, y = 0.97, hjust = 1, vjust = 1, width = twidth,
             label = "Plots on the right show your symptoms over time in color-filled circles.  Colors and the reference used to determine them are defined in the same way as for the plots on the left.", 
         ) +
 
         # left plot explanation 
         # TODO : link x position to actual patient value + automatic text
-        annotate("segment", x = 1.02, xend = line_patient_x, y = 0.28, yend = line_patient_y, color = color) +
-        annotate("point", x = line_patient_x, y = line_patient_y, color = color, size = 3) +
+        annotate("segment", x = 1.02, xend = line_patient_x, y = 0.28 + ycorrection, yend = line_patient_y + ycorrection, color = color) +
+        annotate("point", x = line_patient_x, y = line_patient_y + ycorrection, color = color, size = 3) +
          annotate(
-            "text_box",size = 4, color = color, fill = fill, x = 1.2, y = 0.3, hjust = 1, vjust = 1, width = 0.23,
+            "text_box",size = 4, color = color, fill = fill, x = 1.2, y = 0.3 + ycorrection, hjust = 1, vjust = 1, width = twidth,
             label = paste("Your",current_value_type, "value has", current_trend_desc, "since your last visit."), 
         ) +
 
         # right reference explanation
         # TODO : link x,y position to actual total reference value + include type of reference
-        annotate("segment", x = 1.02, xend = line_ref_x, y = 0.16, yend = line_ref_y, color = color) +
-        annotate("point", x = line_ref_x, y = line_ref_y, color = color, size = 3) +
+        annotate("segment", x = 1.02, xend = line_ref_x, y = 0.16 + ycorrection, yend = line_ref_y + ycorrection, color = color) +
+        annotate("point", x = line_ref_x, y = line_ref_y + ycorrection, color = color, size = 3) +
         annotate(
-            "text_box", size = 4, fill = fill, color = color, x = 1.2, y = 0.18, hjust = 1, vjust = 1, width = 0.23,
+            "text_box", size = 4, fill = fill, color = color, x = 1.2, y = 0.18 + ycorrection, hjust = 1, vjust = 1, width = twidth,
             label = paste("The reference values from", ref_type, "are shown in gray at each week.") 
         ) + 
 
