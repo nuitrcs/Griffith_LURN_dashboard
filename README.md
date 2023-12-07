@@ -6,6 +6,7 @@ To run these files, you need to create a `data/` directory and populate that wit
 The code requires the following standard R libraries:
 ```
 ggplot2
+ggtext
 flexdashboard
 gt
 dplyr

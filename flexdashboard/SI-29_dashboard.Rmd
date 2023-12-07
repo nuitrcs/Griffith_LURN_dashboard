@@ -61,6 +61,7 @@ output:
 ```{r global}
 library(lurn)
 library(ggplot2)
+library(ggtext)
 library(flexdashboard)
 library(gt)
 library(dplyr)
@@ -162,7 +163,7 @@ p <- plot_grid(
 tmp <- tempfile("image0", fileext = ".png")
 
 if (input_params$annotate_plot) {
-    p <- annotate_plot(p, "#a200aa", bar_plot$data, bar_plot$max_x, line_plot$data, line_plot$limits, input_params)
+    p <- annotate_plot(p, "#a200aa", "white", bar_plot$data, bar_plot$max_x, line_plot$data, line_plot$limits, input_params)
     ggsave(tmp, p, width = 13, height = 9, dpi = 300, bg = "white")
 } else {
     ggsave(tmp, p, width = 9, height = 9, dpi = 300, bg = "white")
