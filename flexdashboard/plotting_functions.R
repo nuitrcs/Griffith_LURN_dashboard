@@ -780,7 +780,7 @@ annotate_plot <- function(plt, color, fill, bar_data, bar_max_x, line_data, line
         annotate("point", x = bar_patient_x, y = 0.255 + ycorrection, color = color, size = 3) +
         annotate(
             "text_box", size = 4, color = color, fill = fill, x = -0.2, y = 0.3 + ycorrection, hjust = 0, vjust = 1, width = twidth,
-            label = paste("Your",current_value_type, "value is", current_value_desc, "that of the reference.")
+            label = paste0("Your current ", current_value_type, " value is ", current_value_desc, " ", ref_type, ".")
         ) + 
 
         # left reference explanation
