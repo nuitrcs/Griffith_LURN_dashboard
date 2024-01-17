@@ -6,7 +6,8 @@ params:
     study_arm: NULL
     reference_population : "study_arm"
     show_density: FALSE
-    show_median: TRUE
+    show_median_current: TRUE
+    show_median_timeseries: TRUE
     show_total: TRUE
     show_table: FALSE
     include_table_tab: TRUE

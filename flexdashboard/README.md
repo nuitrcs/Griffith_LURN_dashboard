@@ -15,7 +15,8 @@ $ Rscript -e "webshot::rmdshot(doc = 'SI-29_dashboard.Rmd', rmd_args = list(para
     - `study_arm` : the arm of the patient (can either be "arm_1" or "arm_2", default = NULL and will pick the first arm that this patient has data for)
     - `reference_population` : the desired reference population for comparison (default = "study_arm", i.e., use patients within the same arm of this study.  Other option is "baseline", i.e., use this patient's baseline values)
     - `show_density`: boolean defining whether to show grayscale density plots for the reference population (default = FALSE).  Note that this will always show the density for the "study_arm" reference population (and is independent of the `reference_population` parameter).
-    - `show_median`: boolean defining whether to show the median values for the reference population (default = TRUE)
+    - `show_median_current`: boolean defining whether to show the median values for the reference population in the current symptoms chart (default = TRUE)
+    - `show_median_timeseries`: boolean defining whether to show the (gray) median line for the reference population in the time series plots (default = TRUE)
     - `show_total`: boolean defining whether to show the total plots (default = TRUE)
     - `show_table`: boolean defining whether to show the table tab first (default = FALSE, i.e., show the plots tab first)
     - `include_table_tab`: boolean defining whether to include the table tab in the app (default = TRUE).  Setting this to FALSE may be useful if rendering the plot to an image.

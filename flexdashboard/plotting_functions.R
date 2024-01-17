@@ -15,7 +15,7 @@ get_interpolated_color <- function(value, cp = custom_palette) {
 
 create_current_week_summary_bar_plot <- function(data_all, symptoms, input_params, color_scale = 3.){
     # Produce a horizontal bar chart showing the symptoms for the selected patient on the selected week
-    # in relation to the reference population.  If input_params$show_median or input_params$show_density are TRUE,
+    # in relation to the reference population.  If input_params$show_median_current or input_params$show_density are TRUE,
     # then the reference population is also plotted in the figure (either as a median line or a grayscale density 
     # distribution).  color_scale determines how many "sigma" until the end of the colormap (larger numbers mean
     # the patient can have large deviations from the median before getting a bold color)
@@ -115,7 +115,7 @@ create_current_week_summary_bar_plot <- function(data_all, symptoms, input_param
             new_scale_fill()
     }
 
-    if (input_params$show_median){
+    if (input_params$show_median_current){
         # add the median gray bar for the reference population to the figure
         main <- main +
             geom_errorbar(
@@ -178,7 +178,7 @@ create_current_week_summary_bar_plot <- function(data_all, symptoms, input_param
             new_scale_fill()
     }
 
-    if (input_params$show_median){
+    if (input_params$show_median_current){
         # add the median gray bar for the reference population to the figure
         total <- total +
             geom_errorbar(
@@ -249,7 +249,7 @@ create_current_week_summary_bar_plot <- function(data_all, symptoms, input_param
 
 create_time_series_line_plot <- function(data_all, symptoms, input_params, color_scale = 3.){
     # Produce a faceted line chart showing the symptoms for the selected patient up until the selected week
-    # in relation to the reference population.  If input_params$show_median or input_params$show_density are TRUE,
+    # in relation to the reference population.  If input_params$_timeseries or input_params$show_density are TRUE,
     # then the reference population is also plotted in the figure (either as a median line or a grayscale density 
     # distribution).  color_scale determines how many "sigma" until the end of the colormap (larger numbers mean
     # the patient can have large deviations from the median before getting a bold color)
@@ -423,7 +423,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
             new_scale_fill()
     }
 
-    if (input_params$show_median){
+    if (input_params$show_median_timeseries){
         # add the median gray line for the reference population to the figure
         # using median_values_t here so that I can keep all the weeks (merged_df is limited to be less than the requested patient week)
         main <- main +
@@ -497,7 +497,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
             new_scale_fill()
     }
 
-    if (input_params$show_median){
+    if (input_params$show_median_timeseries){
         # add the median gray line for the reference population to the figure
         # using median_values_t here so that I can keep all the weeks (merged_df is limited to be less than the requested patient week)
         total <- total +    
@@ -781,48 +781,50 @@ annotate_plot <- function(plt, color, fill, bar_data, bar_max_x, line_data, line
         annotate(
             "text_box", size = 4, color = color, fill = fill, x = -0.2, y = 0.3 + ycorrection, hjust = 0, vjust = 1, width = twidth,
             label = paste0("Your current ", current_value_type, " value is ", current_value_desc, " ", ref_type, ".")
-        ) + 
+        )
 
         # left reference explanation
-        annotate("segment", x = 0.0, xend = bar_ref_x, y = 0.16 + ycorrection, yend = 0.24 + ycorrection, color = color) +
-        annotate("point", x = bar_ref_x, y = 0.24 + ycorrection, color = color, size = 3) +
-        annotate(
-            "text_box", size = 4, color = color, fill = fill, x = -0.2, y = 0.18 + ycorrection, hjust = 0, vjust = 1, width = twidth,
-            label = paste("The reference value from", ref_type, "is shown in gray.")
-        ) + 
+        if (input_params$show_median_current){
+            p <- p + annotate("segment", x = 0.0, xend = bar_ref_x, y = 0.16 + ycorrection, yend = 0.24 + ycorrection, color = color) +
+            annotate("point", x = bar_ref_x, y = 0.24 + ycorrection, color = color, size = 3) +
+            annotate(
+                "text_box", size = 4, color = color, fill = fill, x = -0.2, y = 0.18 + ycorrection, hjust = 0, vjust = 1, width = twidth,
+                label = paste("The reference value from", ref_type, "is shown in gray.")
+            )
+        }
 
         ########################
         # RIGHT
         ########################
 
         # right plot label
-        annotate(
+        p <- p + annotate(
             "text_box", size = 4, color = color, fill = fill, x = 1.2, y = 0.97, hjust = 1, vjust = 1, width = twidth,
             label = "Plots on the right show your symptoms over time in color-filled circles.  Colors and the reference used to determine them are defined in the same way as for the plots on the left.", 
         ) +
 
         # left plot explanation 
-        # TODO : link x position to actual patient value + automatic text
         annotate("segment", x = 1.02, xend = line_patient_x, y = 0.28 + ycorrection, yend = line_patient_y + ycorrection, color = color) +
         annotate("point", x = line_patient_x, y = line_patient_y + ycorrection, color = color, size = 3) +
          annotate(
             "text_box",size = 4, color = color, fill = fill, x = 1.2, y = 0.3 + ycorrection, hjust = 1, vjust = 1, width = twidth,
             label = paste("Your",current_value_type, "value has", current_trend_desc, "since your last visit."), 
-        ) +
+        )
 
         # right reference explanation
-        # TODO : link x,y position to actual total reference value + include type of reference
-        annotate("segment", x = 1.02, xend = line_ref_x, y = 0.16 + ycorrection, yend = line_ref_y + ycorrection, color = color) +
-        annotate("point", x = line_ref_x, y = line_ref_y + ycorrection, color = color, size = 3) +
-        annotate(
-            "text_box", size = 4, fill = fill, color = color, x = 1.2, y = 0.18 + ycorrection, hjust = 1, vjust = 1, width = twidth,
-            label = paste("The reference values from", ref_type, "are shown in gray at each week.") 
-        ) + 
+        if (input_params$show_median_timeseries){
+             p <- p + annotate("segment", x = 1.02, xend = line_ref_x, y = 0.16 + ycorrection, yend = line_ref_y + ycorrection, color = color) +
+            annotate("point", x = line_ref_x, y = line_ref_y + ycorrection, color = color, size = 3) +
+            annotate(
+                "text_box", size = 4, fill = fill, color = color, x = 1.2, y = 0.18 + ycorrection, hjust = 1, vjust = 1, width = twidth,
+                label = paste("The reference values from", ref_type, "are shown in gray at each week.") 
+            )
+        }
 
         ########################
         # LEGEND
         ########################
-        annotate(
+        p <- p + annotate(
             "text_box",size = 4, color = color, fill = fill, x = 0.5, y = 0., hjust = 0.5, vjust = 1, width = 0.5, 
             label = "The legend above explains the colors used in all plots." 
         ) 
