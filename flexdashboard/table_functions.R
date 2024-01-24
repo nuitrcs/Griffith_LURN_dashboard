@@ -202,7 +202,6 @@ create_full_table <- function(data_all, input_params, color_scale = 3.){
         labels = c("", "Below\nreference\n(better)", "Above\nreference\n(worse)",""),
         "Patient Values Legend",
         6,
-
     )
     ggsave(tmp_png, patient_legend)
     plgnd_img <- image_scale(image_trim(image_read(tmp_png)), tbl_info$width*0.5) 
