@@ -14,6 +14,7 @@ params:
     annotate_plot: FALSE
     annotation_breakpoint: 0.1
     autoscale_symptoms_axis: FALSE
+    save_plot_image_filename: NULL
 output: 
     flexdashboard::flex_dashboard:
         orientation: rows
@@ -57,6 +58,15 @@ output:
     overflow-y: auto;
 }
 
+/* trying to get the sizing right so that I don't have so much white space! */
+/* 
+.navbar{
+    width:710px;
+}
+#chart1{
+    width:700px;
+}
+*/
 ```
 
 
@@ -173,14 +183,21 @@ if (input_params$annotate_plot) {
     # note that there is also annotate_plot_side to put the annotations on the side
     # previous color used was "#a200aa"
     p <- annotate_plot_vertical(p, "#505050", "white", bar_plot$data, bar_plot$max_x, line_plot$data, line_plot$limits, input_params)
-    ggsave(tmp, p, width = 9, height = 14, dpi = 300, bg = "white")
+    w <- 9
+    h <- 14
 } else {
-    ggsave(tmp, p, width = 9, height = 9, dpi = 300, bg = "white")
+    w <- 9
+    w <- 9
 }
 
-img <- image_read(tmp)
+ggsave(tmp, p, width = w, height = h, dpi = 300, bg = "white")
+img <- image_trim(image_read(tmp))
+img
 
-image_trim(img)
+if (!is.null(input_params$save_plot_image_filename)){
+    # image_write(img, input_params$save_plot_image_filename)
+    ggsave(input_params$save_plot_image_filename, p, width = w, height = h, dpi = 300, bg = "white")
+}
 ```
 
 

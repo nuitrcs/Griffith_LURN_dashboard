@@ -650,7 +650,7 @@ create_legend <- function(
     if (orientation == "vertical"){
         position <- "right"
         width <- 0.5
-        height <- 0.5
+        height <- 0.6
         mgn <- margin(0,0,20,0,"cm")
         hjust <- 0
     }
@@ -726,7 +726,7 @@ annotate_plot_vertical <- function(plt, color, fill, bar_data, bar_max_x, line_d
         current_value_type <- "Total"
         ycorrection <- 0.01
         ytop <- 1.01
-        p <- plt + theme(plot.margin = margin(2, 0, 1.5, 0, "in"))  # margin to create space for annotations
+        p <- plt + theme(plot.margin = margin(0.6, 0, 1.5, 0, "in"))  # margin to create space for annotations
     } else {
         # we are labelling the Incontinence plot
         bar_data_use = bar_data[bar_data$Symptom == "Incontinence",]
@@ -734,7 +734,7 @@ annotate_plot_vertical <- function(plt, color, fill, bar_data, bar_max_x, line_d
         current_value_type <- "Incontinence"
         ycorrection <- 0.05
         ytop <- 1.0
-        p <- plt + theme(plot.margin = margin(2, 0, 1.4, 0, "in"))  # margin to create space for annotations
+        p <- plt + theme(plot.margin = margin(0.6, 0, 1.4, 0, "in"))  # margin to create space for annotations
     }
 
     # get the reference population description
@@ -761,7 +761,7 @@ annotate_plot_vertical <- function(plt, color, fill, bar_data, bar_max_x, line_d
     ###############
     line_data_use_current <- line_data_use %>% slice(which.max(week_event_number))
     offset_x <- 0.515 # where the x=0 value is on the plot (found from trial and error)
-    offset_y <- 0.0615 # where the y=0 value is on the plot (found from trial and error)
+    offset_y <- 0.0615 # where the y=0 value is on the plot (found from trial and error) NOTE: this will not be correct if we autoscale the axes ...
     frac_plot_y <- 0.06 # fraction of the vertical space occupied by plot (estimate)
     line_max_y <- line_limits[line_limits$Symptom == current_value_type,]$max_y 
     line_max_x <- line_limits[line_limits$Symptom == current_value_type,]$max_x
