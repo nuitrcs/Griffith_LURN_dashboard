@@ -13,7 +13,7 @@ get_interpolated_color <- function(value, cp = custom_palette) {
     return(rgb(color_ramp(value), maxColorValue = 255))
 }
 
-create_current_week_summary_bar_plot <- function(data_all, symptoms, input_params, color_scale = 3.){
+create_current_week_summary_bar_plot <- function(data_all, symptoms, input_params, color_scale = 3., fontsize = 10){
     # Produce a horizontal bar chart showing the symptoms for the selected patient on the selected week
     # in relation to the reference population.  If input_params$show_median_current or input_params$show_density are TRUE,
     # then the reference population is also plotted in the figure (either as a median line or a grayscale density 
@@ -154,6 +154,7 @@ create_current_week_summary_bar_plot <- function(data_all, symptoms, input_param
             plot.margin = margin(0.7, 0.09, 0.85, 0.1, "cm"),
             panel.grid.major = element_blank(), 
             panel.grid.minor = element_blank(),
+            axis.text = element_text(size = fontsize)
          ) 
 
     # create the total plot (only including the "Total" value)
@@ -217,6 +218,7 @@ create_current_week_summary_bar_plot <- function(data_all, symptoms, input_param
                 plot.margin = margin(0., 0.09, 0.25, 0.1, "cm"),
                 panel.grid.major = element_blank(), 
                 panel.grid.minor = element_blank(),
+                axis.text = element_text(size = fontsize)
             ) 
 
 
@@ -247,7 +249,7 @@ create_current_week_summary_bar_plot <- function(data_all, symptoms, input_param
     )
 }
 
-create_time_series_line_plot <- function(data_all, symptoms, input_params, color_scale = 3.){
+create_time_series_line_plot <- function(data_all, symptoms, input_params, color_scale = 3., fontsize = 10){
     # Produce a faceted line chart showing the symptoms for the selected patient up until the selected week
     # in relation to the reference population.  If input_params$_timeseries or input_params$show_density are TRUE,
     # then the reference population is also plotted in the figure (either as a median line or a grayscale density 
@@ -467,7 +469,8 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
             plot.margin = margin(0.7, 1.3, 1.2, 0.1, "cm"),
             panel.grid.major = element_blank(), 
             panel.grid.minor = element_blank(),
-            axis.title.y.right = element_text(margin = margin(l = 10))
+            axis.title.y.right = element_text(margin = margin(l = 10)),
+            axis.text = element_text(size = fontsize)
         ) 
 
 
@@ -543,7 +546,8 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
                 plot.margin = margin(0., 1.3, 0.25, 0.1, "cm"),
                 panel.grid.major = element_blank(), 
                 panel.grid.minor = element_blank(),
-                axis.title.y.right = element_text(margin = margin(l = 10))
+                axis.title.y.right = element_text(margin = margin(l = 10)),
+                axis.text = element_text(size = fontsize)
             ) 
     } 
 
@@ -726,7 +730,7 @@ annotate_plot_vertical <- function(plt, color, fill, bar_data, bar_max_x, line_d
         current_value_type <- "Total"
         ycorrection <- 0.01
         ytop <- 1.01
-        p <- plt + theme(plot.margin = margin(0.6, 0, 1.5, 0, "in"))  # margin to create space for annotations
+        p <- plt + theme(plot.margin = margin(0.6, 0, 1.55, 0, "in"))  # margin to create space for annotations
     } else {
         # we are labelling the Incontinence plot
         bar_data_use = bar_data[bar_data$Symptom == "Incontinence",]
@@ -740,12 +744,16 @@ annotate_plot_vertical <- function(plt, color, fill, bar_data, bar_max_x, line_d
     # get the reference population description
     ref_type <- ifelse(input_params$reference_population == "study_arm", "similar patients in this study", "your baseline")
 
-    ###############
+    ########################
     # FOR THE BAR PLOT ANNOTATIONS
-    ###############
+    ########################
 
-    offset_x <- 0.125 # where the x=0 value is on the plot (found from trial and error)
+    offset_x <- 0.135 # where the x=0 value is on the plot (found from trial and error)
     frac_plot <- 0.35 # fraction of the horizontal space occupied by plot (estimate)
+    if (!input_params$include_timeseries_symptom_lineplot) {
+        offset_x <- 0.19
+        frac_plot <- 0.8
+    }
     bar_ref_x <- bar_data_use$Median/bar_max_x*frac_plot + offset_x 
     bar_patient_x <- bar_data_use$Value/bar_max_x*frac_plot + offset_x 
 
@@ -756,9 +764,9 @@ annotate_plot_vertical <- function(plt, color, fill, bar_data, bar_max_x, line_d
         TRUE ~ "similar to"
     )
 
-    ###############
+    ########################
     # FOR THE LINE PLOT ANNOTATIONS
-    ###############
+    ########################
     line_data_use_current <- line_data_use %>% slice(which.max(week_event_number))
     offset_x <- 0.515 # where the x=0 value is on the plot (found from trial and error)
     offset_y <- 0.0615 # where the y=0 value is on the plot (found from trial and error) NOTE: this will not be correct if we autoscale the axes ...
@@ -784,44 +792,68 @@ annotate_plot_vertical <- function(plt, color, fill, bar_data, bar_max_x, line_d
 
 
     # update the plot with the annotations
-    p <- p +
 
-        ########################
-        # TOP
-        ########################
+    ########################
+    # TOP
+    ########################
+    
+    # for both plots
+    txt <- "Plots on the left show your present symptoms in color-filled rectangles, where your symptom level increases toward the right.  Plots on the right show your symptoms over time in color-filled circles, where time increases toward the right and your symptom level increases toward the top."
+    xtop <- 0.107
 
-        # plots description 
-        annotate(
-            "text_box", size = 4, color = color, fill = fill, x = 0.107, y = ytop, hjust = 0, vjust = 1, width = 1.75*twidth, box.color = "white", halign = 0,
-            label = paste0("Plots on the left show your present symptoms in color-filled rectangles, where your symptom level increases toward the right.  Plots on the right show your symptoms over time in color-filled circles, where time increases toward the right and your symptom level increases toward the top.  Colors in all plots indicate how your symptoms compare to a reference of ", ref_type ,", with blue where your value is lower than the reference and orange where your value is higher than the reference.  (Please see the legend on the right.)")
-        ) +
+    # for only the current symptoms bar chart
+    if (!input_params$include_timeseries_symptom_lineplot) {
+        txt <- "Plots below show your present symptoms in color-filled rectangles, where your symptom level increases toward the right."
+        xtop <- 0.15
+        ytop <- ytop - 0.025
+    }
+    # for only the timeseries line plot
+    if (!input_params$include_current_symptom_barchart) {
+        txt <- "Plots below show your symptoms over time in color-filled circles, where time increases toward the right and your symptom level increases toward the top."
+        xtop <- 0.15
+        ytop <- ytop - 0.025
+    }
 
-        ########################
-        # LEFT
-        ########################
+    # plots description 
+    p <- p + annotate("text_box", size = 4, color = color, fill = fill, x = xtop, y = ytop, hjust = 0, vjust = 1, width = 1.75*twidth, box.color = "white", halign = 0,
+        label = paste0(txt,"  Colors in all plots indicate how your symptoms compare to a reference of ", ref_type ,", with blue where your value is lower than the reference and orange where your value is higher than the reference.  (Please see the legend on the right.)")
+    )
 
-        # left plot explanation 
-        annotate("segment", x = 0.112 + 0.05, xend = bar_patient_x, y = -0.02 + ycorrection, yend = 0.065 + ycorrection, color = color) +
-        annotate("point", x = bar_patient_x, y = 0.065 + ycorrection, color = color, size = 3) +
-        annotate(
-            "text_box", size = 4, color = color, fill = fill, x = 0.112 + 0.05, y = -0.01 + ycorrection, hjust = 0, vjust = 1, width = twidth - 0.05,
-            label = paste0("Your current ", current_value_type, " value is ", current_value_desc, " ", ref_type, ".")
-        )
-
-        # left reference explanation
-        if (input_params$show_median_current){
-            p <- p + annotate("segment", x = 0.112 + 0.005, xend = bar_ref_x, y = -0.08 + ycorrection, yend = 0.05 + ycorrection, color = color) +
-            annotate("point", x = bar_ref_x, y = 0.05 + ycorrection, color = color, size = 3) +
-            annotate(
-                "text_box", size = 4, color = color, fill = fill, x = 0.112, y = -0.08 + ycorrection, hjust = 0, vjust = 1, width = twidth - 0.05,
-                label = paste("The reference value from", ref_type, "is shown in gray.")
-            )
+    ########################
+    # FOR THE BAR PLOT ANNOTATIONS (LEFT)
+    ########################
+    # To do: I should try to generalize where these are based on the values in the plot
+    if (input_params$include_current_symptom_barchart){
+        xleft1 <- 0.112 + 0.05
+        xleft2 <- 0.112
+        if (!input_params$include_timeseries_symptom_lineplot) {
+            xleft1 <- xleft1 + 0.1
+            xleft2 <- xleft2 + 0.1
         }
+        p <- p +
+            # left plot explanation 
+            annotate("segment", x = xleft1, xend = bar_patient_x, y = -0.02 + ycorrection, yend = 0.065 + ycorrection, color = color) +
+            annotate("point", x = bar_patient_x, y = 0.065 + ycorrection, color = color, size = 3) +
+            annotate(
+                "text_box", size = 4, color = color, fill = fill, x = xleft1, y = -0.01 + ycorrection, hjust = 0, vjust = 1, width = twidth - 0.05,
+                label = paste0("Your current ", current_value_type, " value is ", current_value_desc, " ", ref_type, ".")
+            )
 
-        ########################
-        # RIGHT
-        ########################
+            # left reference explanation
+            if (input_params$show_median_current){
+                p <- p + annotate("segment", x = xleft2 + 0.005, xend = bar_ref_x, y = -0.08 + ycorrection, yend = 0.05 + ycorrection, color = color) +
+                annotate("point", x = bar_ref_x, y = 0.05 + ycorrection, color = color, size = 3) +
+                annotate(
+                    "text_box", size = 4, color = color, fill = fill, x = xleft2, y = -0.08 + ycorrection, hjust = 0, vjust = 1, width = twidth - 0.05,
+                    label = paste("The reference value from", ref_type, "is shown in gray.")
+                )
+            }
+    }
 
+    ########################
+    # FOR THE LINE PLOT ANNOTATIONS (RIGHT)
+    ########################
+    if (input_params$include_timeseries_symptom_lineplot){
         # right plot explanation 
         p <- p + annotate("segment", x = 0.5 + twidth - 0.05, xend = line_patient_x, y = -0.02 + ycorrection, yend = line_patient_y + ycorrection, color = color) +
         annotate("point", x = line_patient_x, y = line_patient_y + ycorrection, color = color, size = 3) +
@@ -830,31 +862,35 @@ annotate_plot_vertical <- function(plt, color, fill, bar_data, bar_max_x, line_d
             label = paste("Your",current_value_type, "value has", current_trend_desc, "since your last visit."), 
         )
 
-        # right reference explanation
-        if (input_params$show_median_timeseries){
-             p <- p + annotate("segment", x = 0.5 + twidth - 0.005, xend = line_ref_x, y = -0.08 + ycorrection, yend = line_ref_y + ycorrection, color = color) +
-            annotate("point", x = line_ref_x, y = line_ref_y + ycorrection, color = color, size = 3) +
-            annotate(
-                "text_box", size = 4, fill = fill, color = color, x = 0.55, y = -0.08 + ycorrection, hjust = 0, vjust = 1, width = twidth - 0.05,
-                label = paste("The reference values from", ref_type, "are shown in gray at each week.") 
-            )
-        }
+            # right reference explanation
+            if (input_params$show_median_timeseries){
+                p <- p + annotate("segment", x = 0.5 + twidth - 0.005, xend = line_ref_x, y = -0.08 + ycorrection, yend = line_ref_y + ycorrection, color = color) +
+                annotate("point", x = line_ref_x, y = line_ref_y + ycorrection, color = color, size = 3) +
+                annotate(
+                    "text_box", size = 4, fill = fill, color = color, x = 0.55, y = -0.08 + ycorrection, hjust = 0, vjust = 1, width = twidth - 0.05,
+                    label = paste("The reference values from", ref_type, "are shown in gray at each week.") 
+                )
+            }
+    }
 
-        ########################
-        # LEGEND
-        ########################
-        # p <- p + annotate(
-        #     "text_box",size = 4, color = color, fill = fill, x = 0.5, y = 0., hjust = 0.5, vjust = 1, width = 0.5, 
-        #     label = "The legend above explains the colors used in all plots." 
-        # ) 
+    ########################
+    # LEGEND
+    ########################
+    # p <- p + annotate(
+    #     "text_box",size = 4, color = color, fill = fill, x = 0.5, y = 0., hjust = 0.5, vjust = 1, width = 0.5, 
+    #     label = "The legend above explains the colors used in all plots." 
+    # ) 
 
     return(p)
 
 }
 
 annotate_plot_side <- function(plt, color, fill, bar_data, bar_max_x, line_data, line_limits, input_params){
+    # NOTE: this function is deprecated.  In order to use this, you will need to adjust various positions of elements in the plot (see GitHub history) 
+    #    and also apply the booleans to define whether to show the left/right parts of the figure.
+
+    
     # annotate the plot on the sides (see annotate_plot_vertical for a version that annotates above and below)
-    # NOTE: in order to use this, you will likely need to adjust various positions of elements in the plot (see GitHub history).
     # plt is the ggplot object to annotate
     # color is for the text and lines in the annotations
     # fill is the background color of the text boxes

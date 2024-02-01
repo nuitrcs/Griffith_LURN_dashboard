@@ -15,6 +15,8 @@ params:
     annotation_breakpoint: 0.1
     autoscale_symptoms_axis: FALSE
     save_plot_image_filename: NULL
+    include_current_symptom_barchart: TRUE
+    include_timeseries_symptom_lineplot: TRUE
 output: 
     flexdashboard::flex_dashboard:
         orientation: rows
@@ -143,38 +145,57 @@ Row {data-height=1200, id="chart1"}
     
 ```{r, fig.width = 10, fig.height = 14}
 
+
 bar_plot <- create_current_week_summary_bar_plot(
     bph$dat_arm, 
     symptoms, 
-    input_params
+    input_params,
+    fontsize = ifelse(input_params$include_timeseries_symptom_lineplot, 10, 14)
 )
+
+
 line_plot <- create_time_series_line_plot(
     bph$dat_arm, 
     symptoms, 
-    input_params
+    input_params,
+    fontsize = ifelse(input_params$include_current_symptom_barchart, 10, 14)
+
 )
+
+
 if (input_params$annotate_plot){
-    legend <- create_legend(orientation = "vertical") + theme(plot.margin = margin(0, 0, 0, 7, "in"))
+    x_offset <- 7
+    if (!input_params$include_current_symptom_barchart | !input_params$include_timeseries_symptom_lineplot) x_offset <- 7.7
+    legend <- create_legend(orientation = "vertical") + theme(plot.margin = margin(0, 0, 0, x_offset, "in"))
 } else {
     legend <- create_legend(orientation = "horizontal") + theme(plot.margin = margin(0, 0, 0.1, 3, "in"))
 }
 
-g <- plot_grid(
-    bar_plot$plot, 
-    line_plot$plot, 
-    ncol = 2, 
-    align = "h", 
-    rel_widths = c(0.5,0.51), 
-    axis = "l"
-)
-p <- plot_grid(
-    legend,
-    g,
-    ncol = 1, 
-    rel_heights = c(0.1, 0.6),
-    greedy = TRUE
-)
+g <- NULL
+if (input_params$include_current_symptom_barchart & input_params$include_timeseries_symptom_lineplot){
+    g <- plot_grid(
+        bar_plot$plot, 
+        line_plot$plot, 
+        ncol = 2, 
+        align = "h", 
+        rel_widths = c(0.5,0.51), 
+        axis = "l"
+    )
+} else {
+    if (input_params$include_current_symptom_barchart) g <- bar_plot$plot
+    if (input_params$include_timeseries_symptom_lineplot) g <- line_plot$plot
+}
 
+p <- legend
+if (!is.null(g)){
+    p <- plot_grid(
+        legend,
+        g,
+        ncol = 1, 
+        rel_heights = c(0.1, 0.6),
+        greedy = TRUE
+    )
+}
 
 # save the image and then read it back in so that I can annotate it more easily and have consistent sizing!
 tmp <- tempfile("image0", fileext = ".png")
@@ -198,6 +219,7 @@ if (!is.null(input_params$save_plot_image_filename)){
     # image_write(img, input_params$save_plot_image_filename)
     ggsave(input_params$save_plot_image_filename, p, width = w, height = h, dpi = 300, bg = "white")
 }
+
 ```
 
 
