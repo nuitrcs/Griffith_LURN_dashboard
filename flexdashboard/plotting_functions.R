@@ -465,13 +465,15 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
         theme_bw() + 
         theme(
             panel.spacing = unit(0, "lines"),
-            strip.text = element_text(size = 0, margin = margin(0,0,0,0)),
             plot.margin = margin(0.7, 1.3, 1.2, 0.1, "cm"),
             panel.grid.major = element_blank(), 
             panel.grid.minor = element_blank(),
             axis.title.y.right = element_text(margin = margin(l = 10)),
-            axis.text = element_text(size = fontsize)
+            axis.text = element_text(size = fontsize),
+            panel.grid.major.y = element_line(color = "lightgray",size = 0.5,linetype = 1)
         ) 
+
+        if (input_params$include_current_symptom_barchart) main <- main + theme(strip.text = element_text(size = 0, margin = margin(0,0,0,0)))
 
 
     # create the total plot (including only the "Total" value)
@@ -543,12 +545,15 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
             theme_bw() + 
             theme(
                 strip.text = element_text(size = 0, margin = margin(0,0,0,0)),
+                strip.background = element_blank(),
                 plot.margin = margin(0., 1.3, 0.25, 0.1, "cm"),
                 panel.grid.major = element_blank(), 
                 panel.grid.minor = element_blank(),
                 axis.title.y.right = element_text(margin = margin(l = 10)),
-                axis.text = element_text(size = fontsize)
+                axis.text = element_text(size = fontsize),
+                panel.grid.major.y = element_line(color = "lightgray",size = 0.5,linetype = 1)
             ) 
+        
     } 
 
     if (input_params$autoscale_symptoms_axis){
@@ -578,7 +583,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
             breaks = function(x) {
                 return(custom_breaks(x))
             },
-            position = "right",
+            position = ifelse(input_params$include_current_symptom_barchart, "right", "left")
         )
 
         if (input_params$show_total){
@@ -588,7 +593,7 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
                 breaks = function(x) {
                     return(custom_breaks(x))
                 },
-                position = "right",
+                position = ifelse(input_params$include_current_symptom_barchart, "right", "left")
             )
         }
     } else {
@@ -597,7 +602,8 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
             expand = expansion(mult = c(0.2, 0.2)), 
             breaks = c(0, 25, 50, 75, 100),
             limits = c(0, 100),
-            position = "right"
+            position = ifelse(input_params$include_current_symptom_barchart, "right", "left")
+
         )
         if (input_params$show_total){
             total <- total + scale_y_continuous(
@@ -605,20 +611,31 @@ create_time_series_line_plot <- function(data_all, symptoms, input_params, color
                 expand = expansion(mult = c(0.2, 0.2)), 
                 breaks = c(0, 25, 50, 75, 100),
                 limits = c(0, 100),
-                position = "right"
+                position = ifelse(input_params$include_current_symptom_barchart, "right", "left")
             )
         }
     }
 
     if (input_params$show_total){
-
         # combine the main and total panels into one figure and return this to the use
-        g <- plot_grid(main, total, 
-            rel_heights = c(length(symptoms) - 1, 1.4),
-            ncol = 1,
-            align = "v",
-            axis = "b"
-        )
+        if (input_params$include_current_symptom_barchart){
+            g <- plot_grid(main, total, 
+                rel_heights = c(length(symptoms) - 1, 1.4),
+                ncol = 1,
+                align = "v",
+                axis = "b"
+            )
+        } else {
+            g <- plot_grid(main, total, 
+                labels = c('Symptom', 'Total'), 
+                rel_heights = c(length(symptoms) - 1, 1.4),
+                label_y = c(1.01, 1.25),
+                label_x = c(0.01,0.1),
+                ncol = 1,
+                align = "v",
+                axis = "b"
+            )
+        }
     } else {
         g <- main + 
             scale_x_continuous("Weeks since procedure", breaks = breaks, labels = labels, limits = c(-0.01*max_x, max_x*1.01))
@@ -771,6 +788,10 @@ annotate_plot_vertical <- function(plt, color, fill, bar_data, bar_max_x, line_d
     offset_x <- 0.515 # where the x=0 value is on the plot (found from trial and error)
     offset_y <- 0.0615 # where the y=0 value is on the plot (found from trial and error) NOTE: this will not be correct if we autoscale the axes ...
     frac_plot_y <- 0.06 # fraction of the vertical space occupied by plot (estimate)
+    if (!input_params$include_current_symptom_barchart){
+        offset_x <- 0.102
+        frac_plot <- 0.8
+    }
     line_max_y <- line_limits[line_limits$Symptom == current_value_type,]$max_y 
     line_max_x <- line_limits[line_limits$Symptom == current_value_type,]$max_x
 
@@ -798,7 +819,7 @@ annotate_plot_vertical <- function(plt, color, fill, bar_data, bar_max_x, line_d
     ########################
     
     # for both plots
-    txt <- "Plots on the left show your present symptoms in color-filled rectangles, where your symptom level increases toward the right.  Plots on the right show your symptoms over time in color-filled circles, where time increases toward the right and your symptom level increases toward the top."
+    txt <- "Plots on the left show your present symptoms in color-filled rectangles, where your symptom level increases toward the right.  Plots on the right show your symptoms over time in color-filled circles, where time increases toward the right and your symptom level increases toward the top within each panel."
     xtop <- 0.107
 
     # for only the current symptoms bar chart
@@ -809,7 +830,7 @@ annotate_plot_vertical <- function(plt, color, fill, bar_data, bar_max_x, line_d
     }
     # for only the timeseries line plot
     if (!input_params$include_current_symptom_barchart) {
-        txt <- "Plots below show your symptoms over time in color-filled circles, where time increases toward the right and your symptom level increases toward the top."
+        txt <- "Plots below show your symptoms over time in color-filled circles, where time increases toward the right and your symptom level increases toward the top within each panel."
         xtop <- 0.15
         ytop <- ytop - 0.025
     }
