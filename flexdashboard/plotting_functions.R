@@ -721,7 +721,10 @@ create_legend <- function(
         )   
 
     # grab only the legend to return to the user
-    legend <- cowplot::get_legend(g_legend)
+    # legend <- cowplot::get_legend(g_legend)
+    
+    # ggplot2 3.5 breaks the command above!
+    legend <- cowplot::get_plot_component(g_legend, 'guide-box-bottom', return_all = TRUE)
 
     return(ggdraw(legend))
 }
