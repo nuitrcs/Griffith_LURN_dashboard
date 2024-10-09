@@ -208,7 +208,7 @@ if (input_params$annotate_plot) {
     h <- 14
 } else {
     w <- 9
-    w <- 9
+    h <- 9
 }
 
 ggsave(tmp, p, width = w, height = h, dpi = 300, bg = "white")
